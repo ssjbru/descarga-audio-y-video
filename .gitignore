@@ -32,7 +32,7 @@ ssl/
 *.key
 *.crt
 requirements_new.txt
-youtube_cookies.txt
+# youtube_cookies.txt
 .DS_Store
 Thumbs.db
 .vscode/
