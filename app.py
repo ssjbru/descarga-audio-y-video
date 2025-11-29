@@ -122,9 +122,12 @@ def get_formats():
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
             }
         
-        # NO usar cookies al extraer información, solo al descargar
-        # if os.path.exists(COOKIES_FILE):
-        #     ydl_opts['cookiefile'] = COOKIES_FILE
+        # Usar cookies si están disponibles
+        if os.path.exists(COOKIES_FILE):
+            ydl_opts['cookiefile'] = COOKIES_FILE
+            print(f"✓ Cookies de YouTube cargadas desde: {COOKIES_FILE}")
+        else:
+            print("⚠ No se encontraron cookies de YouTube")
         
         print(f"\n[INFO] Extrayendo información de: {url}")
         print(f"[INFO] Plataforma: {'YouTube' if is_youtube else 'SoundCloud' if is_soundcloud else 'Vimeo' if is_vimeo else 'Universal (yt-dlp auto-detect)'}")
