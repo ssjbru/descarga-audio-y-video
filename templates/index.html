@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Descargador de Videos y Audio</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>✨ Descargador Universal</h1>
+            <p>🎬 Descarga videos y música de más de 1000 plataformas en la mejor calidad</p>
+        </header>
+
+        <main>
+            <div class="input-section">
+                <input 
+                    type="text" 
+                    id="urlInput" 
+                    placeholder="🔗 Pega aquí el enlace de tu video o canción favorita..."
+                    autocomplete="off"
+                >
+                <button id="getFormatsBtn" onclick="getFormats()">🔍 Buscar</button>
+            </div>
+
+            <div id="loading" class="loading hidden">
+                <div class="spinner"></div>
+                <p>🚀 Analizando contenido...</p>
+            </div>
+
+            <div id="error" class="error hidden"></div>
+
+            <div id="videoInfo" class="video-info hidden">
+                <div class="info-header">
+                    <img id="thumbnail" src="" alt="Thumbnail">
+                    <div class="info-details">
+                        <h2 id="videoTitle"></h2>
+                        <p id="videoDuration"></p>
+                    </div>
+                </div>
+
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="switchTab('video')">🎬 Video</button>
+                    <button class="tab-btn" onclick="switchTab('audio')">🎵 Audio</button>
+                    <button class="tab-btn" onclick="switchTab('thumbnail')">🖼️ Portada</button>
+                </div>
+
+                <div id="videoFormats" class="formats-section">
+                    <h3>🎬 Formatos de Video Disponibles</h3>
+                    <div class="format-selector">
+                        <label for="videoOutputFormat">🔄 Formato de Salida:</label>
+                        <select id="videoOutputFormat">
+                            <option value="mp4">MP4 (Recomendado)</option>
+                            <option value="webm">WebM</option>
+                            <option value="mkv">MKV</option>
+                            <option value="avi">AVI</option>
+                            <option value="mov">MOV</option>
+                        </select>
+                    </div>
+                    <div id="videoFormatsList" class="formats-list"></div>
+                </div>
+
+                <div id="audioFormats" class="formats-section hidden">
+                    <h3>🎵 Formatos de Audio Disponibles</h3>
+                    <div class="format-selector">
+                        <label for="audioOutputFormat">🔄 Formato de Salida:</label>
+                        <select id="audioOutputFormat">
+                            <option value="mp3">MP3 (Recomendado)</option>
+                            <option value="m4a">M4A</option>
+                            <option value="wav">WAV</option>
+                            <option value="flac">FLAC</option>
+                            <option value="ogg">OGG</option>
+                            <option value="opus">OPUS</option>
+                        </select>
+                    </div>
+                    <div id="audioFormatsList" class="formats-list"></div>
+                </div>
+
+                <div id="thumbnailFormats" class="formats-section hidden">
+                    <h3>🖼️ Portadas Disponibles</h3>
+                    <div class="format-selector">
+                        <label for="thumbnailFormat">🔄 Formato de Imagen:</label>
+                        <select id="thumbnailFormat">
+                            <option value="jpg">JPG (Recomendado)</option>
+                            <option value="png">PNG</option>
+                            <option value="webp">WebP</option>
+                        </select>
+                    </div>
+                    <div id="thumbnailsList" class="formats-list"></div>
+                </div>
+            </div>
+
+            <div id="downloadProgress" class="download-progress hidden">
+                <h3>🚀 Descargando tu contenido...</h3>
+                <div class="progress-bar">
+                    <div id="progressFill" class="progress-fill"></div>
+                </div>
+                <p id="progressText">0%</p>
+                <p id="progressSpeed"></p>
+            </div>
+        </main>
+
+        <footer>
+            <p style="font-size: 1.1rem; margin-bottom: 15px;">✨ <strong>Compatible con 1000+ Plataformas:</strong> YouTube, Instagram, TikTok, Facebook, Twitter, Reddit, Twitch, Dailymotion y muchísimas más</p>
+            
+            <button id="showAllSitesBtn" onclick="loadAllSupportedSites()" style="margin: 20px auto; padding: 14px 32px; background: linear-gradient(135deg, var(--primary-color), var(--accent-color)); color: white; border: none; border-radius: 12px; font-weight: 700; cursor: pointer; font-size: 1rem; transition: all 0.3s ease; display: block;">
+                🌐 Ver TODAS las Plataformas Soportadas (<span id="sitesCount">1000+</span>)
+            </button>
+            
+            <details style="margin: 20px 0; padding: 15px; background: rgba(15, 23, 42, 0.6); border-radius: 12px; cursor: pointer;">
+                <summary style="font-weight: 700; font-size: 1.05rem; color: var(--primary-color); user-select: none;">📋 Plataformas Destacadas</summary>
+                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border-color);">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 15px;">
+                        <div>
+                            <h4 style="color: var(--secondary-color); margin-bottom: 8px;">✅ Optimizadas</h4>
+                            <ul style="list-style: none; padding: 0; color: var(--text-muted); line-height: 1.8;">
+                                <li>• YouTube</li>
+                                <li>• Instagram</li>
+                                <li>• TikTok</li>
+                                <li>• SoundCloud</li>
+                                <li>• Vimeo</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 style="color: var(--primary-color); margin-bottom: 8px;">✔️ Soportadas</h4>
+                            <ul style="list-style: none; padding: 0; color: var(--text-muted); line-height: 1.8;">
+                                <li>• Facebook</li>
+                                <li>• Twitter (X)</li>
+                                <li>• Dailymotion</li>
+                                <li>• Twitch (VODs)</li>
+                                <li>• Reddit</li>
+                                <li>• Streamable</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 style="color: var(--danger-color); margin-bottom: 8px;">❌ No Disponibles</h4>
+                            <ul style="list-style: none; padding: 0; color: var(--text-muted); line-height: 1.8;">
+                                <li>• Spotify</li>
+                                <li>• Apple Music</li>
+                                <li>• Netflix</li>
+                                <li>• Disney+</li>
+                                <li>• Amazon Prime</li>
+                            </ul>
+                            <p style="font-size: 0.85rem; margin-top: 10px; opacity: 0.7;">*Protección DRM</p>
+                        </div>
+                    </div>
+                    <p style="font-size: 0.9rem; color: var(--text-muted); margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border-color);">💡 <strong>Nota:</strong> Compatible con más de 1000 sitios web gracias a yt-dlp</p>
+                </div>
+            </details>
+            <p style="margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--border-color); font-size: 0.95rem;">
+                Desarrollado con 💜 por <strong style="background: linear-gradient(135deg, var(--primary-color), var(--accent-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-size: 1.1rem;">brussj</strong>
+            </p>
+        </footer>
+    </div>
+
+    <!-- Modal para mostrar todas las plataformas -->
+    <div id="sitesModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🌐 Plataformas Soportadas</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="search-box">
+                    <input type="text" id="siteSearch" placeholder="🔍 Buscar plataforma..." onkeyup="filterSites()">
+                    <p id="searchResults" style="margin-top: 10px; color: var(--text-muted); font-size: 0.9rem;"></p>
+                </div>
+                <div id="sitesLoading" class="loading">
+                    <div class="spinner"></div>
+                    <p>Cargando plataformas...</p>
+                </div>
+                <div id="sitesList" class="sites-grid hidden"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

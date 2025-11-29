@@ -1,0 +1,21 @@
+[Unit]
+Description=Descargar de YT - Descargador Universal
+After=network.target
+
+[Service]
+Type=notify
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/descargardeyt
+Environment="PATH=/var/www/descargardeyt/venv/bin"
+ExecStart=/var/www/descargardeyt/venv/bin/gunicorn app:app --bind 127.0.0.1:5000 --workers 4 --timeout 300 --log-level info --access-logfile /var/log/descargardeyt/access.log --error-logfile /var/log/descargardeyt/error.log
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+KillSignal=SIGQUIT
+TimeoutStopSec=5
+PrivateTmp=true
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
