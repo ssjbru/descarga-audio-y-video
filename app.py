@@ -122,12 +122,13 @@ def get_formats():
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
             }
         
-        # Usar cookies si están disponibles
-        if os.path.exists(COOKIES_FILE):
+        # Usar cookies si están disponibles y no están vacías
+        if os.path.exists(COOKIES_FILE) and os.path.getsize(COOKIES_FILE) > 0:
             ydl_opts['cookiefile'] = COOKIES_FILE
             print(f"✓ Cookies de YouTube cargadas desde: {COOKIES_FILE}")
         else:
-            print("⚠ No se encontraron cookies de YouTube")
+            print("⚠ No se encontraron cookies de YouTube (o el archivo está vacío)")
+            print("   La aplicación seguirá funcionando pero puede tener limitaciones con YouTube")
         
         print(f"\n[INFO] Extrayendo información de: {url}")
         print(f"[INFO] Plataforma: {'YouTube' if is_youtube else 'SoundCloud' if is_soundcloud else 'Vimeo' if is_vimeo else 'Universal (yt-dlp auto-detect)'}")
@@ -377,7 +378,7 @@ def download():
         }
         
         # Usar cookies SOLO para descarga (no para extraer info)
-        if os.path.exists(COOKIES_FILE):
+        if os.path.exists(COOKIES_FILE) and os.path.getsize(COOKIES_FILE) > 0:
             ydl_opts['cookiefile'] = COOKIES_FILE
         
         if download_type == 'audio':
@@ -586,7 +587,7 @@ def trim_video():
             'no_warnings': True,
         }
         
-        if os.path.exists(COOKIES_FILE):
+        if os.path.exists(COOKIES_FILE) and os.path.getsize(COOKIES_FILE) > 0:
             ydl_opts['cookiefile'] = COOKIES_FILE
         
         print(f"[TRIM] Obteniendo URL directa del video: {url}")
@@ -663,7 +664,7 @@ def download_trimmed(download_id):
 
 if __name__ == '__main__':
     # Verificar si hay cookies disponibles
-    if os.path.exists(COOKIES_FILE):
+    if os.path.exists(COOKIES_FILE) and os.path.getsize(COOKIES_FILE) > 0:
         print("✓ Cookies de YouTube cargadas desde:", COOKIES_FILE)
     else:
         print("⚠ No se encontraron cookies. Para evitar bloqueos de YouTube:")
