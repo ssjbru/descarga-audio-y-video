@@ -20,31 +20,32 @@ function showError(message) {
 }
 
 function switchTab(tab) {
-    const videoTab = document.querySelector('.tab-btn:nth-child(1)');
-    const audioTab = document.querySelector('.tab-btn:nth-child(2)');
-    const thumbnailTab = document.querySelector('.tab-btn:nth-child(3)');
+    const tabs = document.querySelectorAll('.tab-btn');
     const videoFormatsDiv = document.getElementById('videoFormats');
     const audioFormatsDiv = document.getElementById('audioFormats');
+    const trimSection = document.getElementById('trimSection');
     const thumbnailFormatsDiv = document.getElementById('thumbnailFormats');
 
     // Remover active de todos
-    videoTab.classList.remove('active');
-    audioTab.classList.remove('active');
-    thumbnailTab.classList.remove('active');
+    tabs.forEach(t => t.classList.remove('active'));
     
     // Ocultar todos
     hideElement('videoFormats');
     hideElement('audioFormats');
+    hideElement('trimSection');
     hideElement('thumbnailFormats');
 
     if (tab === 'video') {
-        videoTab.classList.add('active');
+        tabs[0].classList.add('active');
         showElement('videoFormats');
     } else if (tab === 'audio') {
-        audioTab.classList.add('active');
+        tabs[1].classList.add('active');
         showElement('audioFormats');
+    } else if (tab === 'trim') {
+        tabs[2].classList.add('active');
+        showElement('trimSection');
     } else if (tab === 'thumbnail') {
-        thumbnailTab.classList.add('active');
+        tabs[3].classList.add('active');
         showElement('thumbnailFormats');
     }
 }
@@ -589,3 +590,96 @@ document.addEventListener('keydown', (e) => {
         closeModal();
     }
 });
+
+// ========== FUNCIONES DE RECORTE ==========
+
+function setTrimExample(start, end) {
+    document.getElementById('startTime').value = start;
+    document.getElementById('endTime').value = end;
+}
+
+function validateTimeFormat(time) {
+    const regex = /^([0-9]{2}):([0-9]{2}):([0-9]{2})$/;
+    return regex.test(time);
+}
+
+async function trimVideo() {
+    const startTime = document.getElementById('startTime').value;
+    const endTime = document.getElementById('endTime').value;
+    const trimProgress = document.getElementById('trimProgress');
+    const trimStatus = document.getElementById('trimStatus');
+
+    if (!currentUrl) {
+        showError('❌ Primero debes buscar un video');
+        return;
+    }
+
+    if (!startTime || !endTime) {
+        showError('❌ Debes especificar el tiempo de inicio y fin');
+        return;
+    }
+
+    if (!validateTimeFormat(startTime) || !validateTimeFormat(endTime)) {
+        showError('❌ Formato de tiempo inválido. Use HH:MM:SS (ejemplo: 00:01:30)');
+        return;
+    }
+
+    // Convertir a segundos para comparar
+    const startSeconds = timeToSeconds(startTime);
+    const endSeconds = timeToSeconds(endTime);
+
+    if (startSeconds >= endSeconds) {
+        showError('❌ El tiempo de inicio debe ser menor que el tiempo final');
+        return;
+    }
+
+    try {
+        showElement('trimProgress');
+        trimStatus.textContent = '⏳ Descargando video...';
+
+        const response = await fetch('/trim_video', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                url: currentUrl,
+                start_time: startTime,
+                end_time: endTime
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Error al recortar el video');
+        }
+
+        const data = await response.json();
+        
+        if (data.success) {
+            trimStatus.textContent = '✅ ¡Recortado exitoso! Descargando...';
+            
+            // Descargar el archivo
+            const downloadUrl = `/download_trimmed/${data.download_id}`;
+            window.location.href = downloadUrl;
+            
+            setTimeout(() => {
+                hideElement('trimProgress');
+                trimStatus.textContent = 'Procesando...';
+            }, 2000);
+        } else {
+            throw new Error(data.error || 'Error desconocido');
+        }
+
+    } catch (error) {
+        console.error('Error al recortar:', error);
+        showError(`❌ Error: ${error.message}`);
+        hideElement('trimProgress');
+        trimStatus.textContent = 'Procesando...';
+    }
+}
+
+function timeToSeconds(time) {
+    const parts = time.split(':');
+    return parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2]);
+}

@@ -1182,3 +1182,137 @@ button.loading::after {
 #showAllSitesBtn:active {
     transform: translateY(-1px) scale(1.02);
 }
+
+/* ========== ESTILOS PARA RECORTE ========== */
+
+.trim-description {
+    color: var(--text-muted);
+    margin-bottom: 25px;
+    text-align: center;
+    font-size: 0.95rem;
+}
+
+.trim-controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 25px;
+}
+
+.time-input-group {
+    background: rgba(255, 255, 255, 0.03);
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+}
+
+.time-input-group label {
+    display: block;
+    color: var(--text-color);
+    font-weight: 600;
+    margin-bottom: 10px;
+    font-size: 0.95rem;
+}
+
+.time-input-group input {
+    width: 100%;
+    padding: 12px 15px;
+    background: var(--card-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-color);
+    font-size: 1.1rem;
+    font-family: 'Courier New', monospace;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.time-input-group input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.time-input-group small {
+    display: block;
+    color: var(--text-muted);
+    margin-top: 8px;
+    font-size: 0.85rem;
+    text-align: center;
+}
+
+.trim-examples {
+    background: rgba(99, 102, 241, 0.05);
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 25px;
+    border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.trim-examples p {
+    color: var(--text-color);
+    margin-bottom: 15px;
+    font-weight: 600;
+}
+
+.example-btn {
+    background: var(--card-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    margin: 5px;
+    transition: all 0.3s ease;
+}
+
+.example-btn:hover {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.trim-btn {
+    width: 100%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    font-size: 1.1rem;
+    padding: 16px;
+    margin-top: 10px;
+}
+
+.trim-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+}
+
+.trim-progress {
+    text-align: center;
+    padding: 30px;
+    background: rgba(99, 102, 241, 0.05);
+    border-radius: 12px;
+    margin-top: 20px;
+}
+
+.trim-progress .spinner {
+    margin: 0 auto 15px;
+}
+
+.trim-progress p {
+    color: var(--text-color);
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+@media (max-width: 768px) {
+    .trim-controls {
+        grid-template-columns: 1fr;
+    }
+    
+    .example-btn {
+        display: block;
+        width: 100%;
+        margin: 8px 0;
+    }
+}

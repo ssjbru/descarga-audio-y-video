@@ -43,7 +43,43 @@
                 <div class="tabs">
                     <button class="tab-btn active" onclick="switchTab('video')">🎬 Video</button>
                     <button class="tab-btn" onclick="switchTab('audio')">🎵 Audio</button>
+                    <button class="tab-btn" onclick="switchTab('trim')">✂️ Recortar</button>
                     <button class="tab-btn" onclick="switchTab('thumbnail')">🖼️ Portada</button>
+                </div>
+
+                <div id="trimSection" class="formats-section hidden">
+                    <h3>✂️ Recortar Video/Audio</h3>
+                    <p class="trim-description">Selecciona el intervalo de tiempo que deseas extraer</p>
+                    
+                    <div class="trim-controls">
+                        <div class="time-input-group">
+                            <label for="startTime">⏱️ Tiempo de Inicio:</label>
+                            <input type="text" id="startTime" placeholder="00:00:00" value="00:00:00" pattern="[0-9]{2}:[0-9]{2}:[0-9]{2}">
+                            <small>Formato: HH:MM:SS</small>
+                        </div>
+                        
+                        <div class="time-input-group">
+                            <label for="endTime">⏱️ Tiempo Final:</label>
+                            <input type="text" id="endTime" placeholder="00:01:00" pattern="[0-9]{2}:[0-9]{2}:[0-9]{2}">
+                            <small>Formato: HH:MM:SS</small>
+                        </div>
+                    </div>
+                    
+                    <div class="trim-examples">
+                        <p><strong>💡 Ejemplos:</strong></p>
+                        <button class="example-btn" onclick="setTrimExample('00:00:00', '00:00:30')">Primeros 30 segundos</button>
+                        <button class="example-btn" onclick="setTrimExample('00:00:00', '00:01:00')">Primer minuto</button>
+                        <button class="example-btn" onclick="setTrimExample('00:00:30', '00:01:30')">De 0:30 a 1:30</button>
+                    </div>
+                    
+                    <button class="download-btn trim-btn" onclick="trimVideo()">
+                        ✂️ Recortar y Descargar
+                    </button>
+                    
+                    <div id="trimProgress" class="trim-progress hidden">
+                        <div class="spinner"></div>
+                        <p id="trimStatus">Procesando...</p>
+                    </div>
                 </div>
 
                 <div id="videoFormats" class="formats-section">
