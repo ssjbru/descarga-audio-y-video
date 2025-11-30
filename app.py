@@ -561,27 +561,27 @@ def cookies_status():
 
 @app.route('/trim_video', methods=['POST'])
 def trim_video():
-    """Recorta un video/audio desde un URL o archivo subido"""
+    """Recorta un video/audio desde un URL usando descarga directa con ffmpeg"""
     try:
         data = request.get_json()
         url = data.get('url')
         start_time = data.get('start_time', '00:00:00')  # Formato: HH:MM:SS
         end_time = data.get('end_time')
         
-        if not url and 'file' not in request.files:
-            return jsonify({'error': 'Debe proporcionar una URL o un archivo'}), 400
+        if not url:
+            return jsonify({'error': 'Debe proporcionar una URL'}), 400
         
         if not end_time:
             return jsonify({'error': 'Debe especificar el tiempo final'}), 400
         
         # Generar ID único para la descarga
         download_id = str(uuid.uuid4())
-        filename = f"trimmed_{download_id}"
+        filename = f"trimmed_{download_id}.mp4"
+        output_file = os.path.join(DOWNLOAD_FOLDER, filename)
         
-        # Configurar yt-dlp para descargar el video
+        # Obtener la URL directa del video
         ydl_opts = {
-            'format': 'best',
-            'outtmpl': os.path.join(DOWNLOAD_FOLDER, f'{filename}_original.%(ext)s'),
+            'format': 'best[ext=mp4]/best',
             'quiet': True,
             'no_warnings': True,
         }
@@ -589,48 +589,30 @@ def trim_video():
         if os.path.exists(COOKIES_FILE):
             ydl_opts['cookiefile'] = COOKIES_FILE
         
-        # Descargar el video
-        print(f"[TRIM] Descargando video: {url}")
+        print(f"[TRIM] Obteniendo URL directa del video: {url}")
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            original_file = ydl.prepare_filename(info)
-            ext = info.get('ext', 'mp4')
+            info = ydl.extract_info(url, download=False)
+            if 'url' in info:
+                direct_url = info['url']
+            elif 'entries' in info:
+                direct_url = info['entries'][0]['url']
+            else:
+                return jsonify({'error': 'No se pudo obtener la URL directa del video'}), 500
         
-        if not os.path.exists(original_file):
-            return jsonify({'error': 'Error al descargar el archivo'}), 500
+        # Usar ffmpeg para descargar SOLO el segmento necesario (sin descargar todo)
+        # -ss antes de -i hace que ffmpeg busque directamente sin descargar todo
+        print(f"[TRIM] Recortando desde {start_time} hasta {end_time} (descarga optimizada)")
+        cmd = [
+            'ffmpeg',
+            '-ss', start_time,  # Posición de inicio (ANTES de -i para optimizar)
+            '-i', direct_url,    # URL directa del video
+            '-to', end_time,     # Posición final
+            '-c', 'copy',        # Copiar sin re-encodear (más rápido)
+            '-y',                # Sobrescribir sin preguntar
+            output_file
+        ]
         
-        # Archivo de salida recortado
-        output_file = os.path.join(DOWNLOAD_FOLDER, f'{filename}_trimmed.{ext}')
-        
-        # Usar ffmpeg para recortar
-        # Calcular duración si se proporciona end_time
-        if end_time:
-            # Formato: ffmpeg -i input.mp4 -ss 00:00:10 -to 00:00:30 -c copy output.mp4
-            cmd = [
-                'ffmpeg',
-                '-i', original_file,
-                '-ss', start_time,
-                '-to', end_time,
-                '-c', 'copy',
-                '-y',  # Sobrescribir sin preguntar
-                output_file
-            ]
-        else:
-            cmd = [
-                'ffmpeg',
-                '-i', original_file,
-                '-ss', start_time,
-                '-c', 'copy',
-                '-y',
-                output_file
-            ]
-        
-        print(f"[TRIM] Recortando desde {start_time} hasta {end_time}")
         result = subprocess.run(cmd, capture_output=True, text=True)
-        
-        # Eliminar archivo original
-        if os.path.exists(original_file):
-            os.remove(original_file)
         
         if result.returncode != 0:
             print(f"[ERROR TRIM] {result.stderr}")
@@ -645,7 +627,7 @@ def trim_video():
         return jsonify({
             'success': True,
             'download_id': download_id,
-            'filename': f'{filename}_trimmed.{ext}',
+            'filename': filename,
             'filesize': file_size,
             'filesize_mb': round(file_size / (1024 * 1024), 2)
         })
@@ -660,7 +642,7 @@ def download_trimmed(download_id):
     try:
         # Buscar el archivo en la carpeta de descargas
         for filename in os.listdir(DOWNLOAD_FOLDER):
-            if filename.startswith(f'trimmed_{download_id}') and '_trimmed' in filename:
+            if filename.startswith(f'trimmed_{download_id}'):
                 filepath = os.path.join(DOWNLOAD_FOLDER, filename)
                 
                 # Obtener el nombre limpio para la descarga
