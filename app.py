@@ -107,12 +107,34 @@ def get_formats():
         
         # Optimizaciones específicas por plataforma
         if is_youtube:
-            # Para YouTube, usar configuración sin cookies para obtener info
+            # Para YouTube, intentar múltiples métodos de autenticación
             ydl_opts['extractor_args'] = {
                 'youtube': {
-                    'player_client': ['android_creator'],
+                    'player_client': ['android_creator', 'web'],
+                    'skip': ['hls', 'dash']
                 }
             }
+            
+            # Intentar usar cookies del navegador automáticamente
+            if os.path.exists(COOKIES_FILE) and os.path.getsize(COOKIES_FILE) > 0:
+                ydl_opts['cookiefile'] = COOKIES_FILE
+                print(f"✓ Cookies de YouTube cargadas desde archivo: {COOKIES_FILE}")
+            else:
+                # Intentar extraer cookies del navegador automáticamente
+                try:
+                    ydl_opts['cookiesfrombrowser'] = ('chrome',)
+                    print("✓ Usando cookies de Chrome automáticamente")
+                except:
+                    try:
+                        ydl_opts['cookiesfrombrowser'] = ('firefox',)
+                        print("✓ Usando cookies de Firefox automáticamente")
+                    except:
+                        try:
+                            ydl_opts['cookiesfrombrowser'] = ('edge',)
+                            print("✓ Usando cookies de Edge automáticamente")
+                        except:
+                            print("⚠ No se pudieron cargar cookies del navegador")
+                            print("   YouTube puede tener limitaciones sin cookies")
         elif is_soundcloud:
             # SoundCloud configuración optimizada
             ydl_opts['http_headers'] = {
@@ -129,14 +151,6 @@ def get_formats():
             ydl_opts['http_headers'] = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
             }
-        
-        # Usar cookies si están disponibles y no están vacías
-        if os.path.exists(COOKIES_FILE) and os.path.getsize(COOKIES_FILE) > 0:
-            ydl_opts['cookiefile'] = COOKIES_FILE
-            print(f"✓ Cookies de YouTube cargadas desde: {COOKIES_FILE}")
-        else:
-            print("⚠ No se encontraron cookies de YouTube (o el archivo está vacío)")
-            print("   La aplicación seguirá funcionando pero puede tener limitaciones con YouTube")
         
         print(f"\n[INFO] Extrayendo información de: {url}")
         print(f"[INFO] Plataforma: {'YouTube' if is_youtube else 'SoundCloud' if is_soundcloud else 'Vimeo' if is_vimeo else 'Universal (yt-dlp auto-detect)'}")
@@ -378,16 +392,38 @@ def download():
             'quiet': True,
             'no_warnings': True,
             'no_check_certificate': True,
-            'extractor_args': {
-                'youtube': {
-                    'player_client': ['android_creator'],
-                }
-            },
         }
         
-        # Usar cookies SOLO para descarga (no para extraer info)
-        if os.path.exists(COOKIES_FILE) and os.path.getsize(COOKIES_FILE) > 0:
-            ydl_opts['cookiefile'] = COOKIES_FILE
+        # Detectar si es YouTube
+        is_youtube = 'youtube.com' in url or 'youtu.be' in url
+        
+        if is_youtube:
+            ydl_opts['extractor_args'] = {
+                'youtube': {
+                    'player_client': ['android_creator', 'web'],
+                    'skip': ['hls', 'dash']
+                }
+            }
+            
+            # Intentar usar cookies del archivo primero
+            if os.path.exists(COOKIES_FILE) and os.path.getsize(COOKIES_FILE) > 0:
+                ydl_opts['cookiefile'] = COOKIES_FILE
+                print("✓ [Descarga] Cookies de YouTube cargadas desde archivo")
+            else:
+                # Intentar extraer cookies del navegador automáticamente
+                try:
+                    ydl_opts['cookiesfrombrowser'] = ('chrome',)
+                    print("✓ [Descarga] Usando cookies de Chrome automáticamente")
+                except:
+                    try:
+                        ydl_opts['cookiesfrombrowser'] = ('firefox',)
+                        print("✓ [Descarga] Usando cookies de Firefox automáticamente")
+                    except:
+                        try:
+                            ydl_opts['cookiesfrombrowser'] = ('edge',)
+                            print("✓ [Descarga] Usando cookies de Edge automáticamente")
+                        except:
+                            print("⚠ [Descarga] No se pudieron cargar cookies del navegador")
         
         if download_type == 'audio':
             # Descargar solo audio
