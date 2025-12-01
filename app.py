@@ -125,6 +125,34 @@ def supported_sites():
         print(f"Error obteniendo sitios: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/debug/cookies', methods=['GET'])
+def debug_cookies():
+    """Endpoint de diagnóstico para verificar estado de cookies"""
+    info = {
+        'cookies_found': COOKIES_FILE is not None,
+        'cookies_path': COOKIES_FILE,
+        'cookies_writable_path': COOKIES_FILE_WRITABLE,
+        'cookies_exists': os.path.exists(COOKIES_FILE) if COOKIES_FILE else False,
+        'cookies_writable_exists': os.path.exists(COOKIES_FILE_WRITABLE) if COOKIES_FILE_WRITABLE else False,
+        'is_render': os.path.exists('/opt/render'),
+    }
+    
+    # Si hay cookies, obtener info adicional
+    if COOKIES_FILE_WRITABLE and os.path.exists(COOKIES_FILE_WRITABLE):
+        try:
+            info['cookies_size'] = os.path.getsize(COOKIES_FILE_WRITABLE)
+            with open(COOKIES_FILE_WRITABLE, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+                info['cookies_lines'] = len(lines)
+                cookie_lines = [l for l in lines if l.strip() and not l.startswith('#')]
+                info['cookies_valid_lines'] = len(cookie_lines)
+                youtube_cookies = [l for l in cookie_lines if 'youtube.com' in l or '.google.com' in l]
+                info['youtube_cookies_count'] = len(youtube_cookies)
+        except Exception as e:
+            info['cookies_error'] = str(e)
+    
+    return jsonify(info)
+
 @app.route('/get_formats', methods=['POST'])
 def get_formats():
     """Obtiene los formatos disponibles de un video - Compatible con 1000+ plataformas"""
@@ -201,6 +229,13 @@ def get_formats():
         
         print(f"\n[INFO] Extrayendo información de: {url}")
         print(f"[INFO] Plataforma: {'YouTube' if is_youtube else 'SoundCloud' if is_soundcloud else 'Vimeo' if is_vimeo else 'Universal (yt-dlp auto-detect)'}")
+        
+        # Log de configuración de cookies
+        if is_youtube:
+            if 'cookiefile' in ydl_opts:
+                print(f"[INFO] Usando cookies: {ydl_opts['cookiefile']}")
+            else:
+                print(f"[INFO] Sin cookies - solo formatos limitados disponibles")
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
