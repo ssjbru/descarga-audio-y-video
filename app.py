@@ -464,8 +464,17 @@ def download():
             # Descargar video
             if format_id and format_id != 'best':
                 # Para formatos predefinidos de YouTube (con restricción de altura)
-                if 'height<=' in format_id or '[' in format_id:
-                    ydl_opts['format'] = f'{format_id}/best'
+                if 'height<=' in format_id:
+                    # Extraer la altura del formato
+                    try:
+                        height = format_id.split('height<=')[1].split(']')[0]
+                        # Usar cadena de fallback robusta: intenta el mejor con esa altura, 
+                        # si falla intenta combinar video+audio de esa altura,
+                        # si falla usa el mejor formato disponible
+                        ydl_opts['format'] = f'bestvideo[height<={height}]+bestaudio/best[height<={height}]/bestvideo+bestaudio/best'
+                    except:
+                        # Si falla el parseo, usar formato seguro
+                        ydl_opts['format'] = 'bestvideo+bestaudio/best'
                 else:
                     # Para otros formatos específicos
                     ydl_opts['format'] = f'{format_id}+bestaudio/best'
