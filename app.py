@@ -125,8 +125,9 @@ def get_formats():
             if os.path.exists(COOKIES_FILE) and os.path.getsize(COOKIES_FILE) > 0:
                 ydl_opts['cookiefile'] = COOKIES_FILE
                 print(f"✓ Cookies de YouTube cargadas desde archivo: {COOKIES_FILE}")
-            else:
-                # Intentar extraer cookies del navegador automáticamente
+            # En servidor (Render), no intentar extraer cookies del navegador
+            # Solo funciona en local donde el usuario tiene navegadores instalados
+            elif not os.path.exists('/opt/render'):  # No estamos en Render
                 try:
                     ydl_opts['cookiesfrombrowser'] = ('chrome',)
                     print("✓ Usando cookies de Chrome automáticamente")
@@ -415,8 +416,8 @@ def download():
             if os.path.exists(COOKIES_FILE) and os.path.getsize(COOKIES_FILE) > 0:
                 ydl_opts['cookiefile'] = COOKIES_FILE
                 print("✓ [Descarga] Cookies de YouTube cargadas desde archivo")
-            else:
-                # Intentar extraer cookies del navegador automáticamente
+            # Solo intentar cookies del navegador en local, no en servidor
+            elif not os.path.exists('/opt/render'):
                 try:
                     ydl_opts['cookiesfrombrowser'] = ('chrome',)
                     print("✓ [Descarga] Usando cookies de Chrome automáticamente")
