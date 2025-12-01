@@ -51,7 +51,8 @@ def index():
 @app.route('/ads.txt')
 def ads_txt():
     """Sirve el archivo ads.txt para Google AdSense"""
-    return send_file('ads.txt', mimetype='text/plain')
+    from flask import Response
+    return Response('google.com, pub-7759712886141440, DIRECT, f08c47fec0942fa0', mimetype='text/plain')
 
 @app.route('/supported_sites')
 def supported_sites():
