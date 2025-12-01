@@ -3,25 +3,491 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Descargador de Videos y Audio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <meta name="description" content="Download, trim and convert media files - Descarga, recorta y convierte archivos multimedia">
+    <title data-i18n="page_title">Trimvert - Universal Media Tool</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+    <!-- Cursor personalizado hermoso -->
+    <div class="cursor-dot"></div>
+    <div class="cursor-outline"></div>
+    
     <div class="container">
         <header>
-            <h1>✨ Descargador Universal</h1>
-            <p>🎬 Descarga videos y música de más de 1000 plataformas en la mejor calidad</p>
+            <div class="header-top">
+                <div class="settings-container">
+                    <button class="settings-btn" onclick="toggleSettingsMenu()" title="Settings">
+                        ⚙️
+                    </button>
+                    <div class="settings-menu hidden" id="settingsMenu">
+                        <!-- Theme Toggle -->
+                        <div class="settings-section">
+                            <div class="settings-option" onclick="toggleTheme()">
+                                <span class="option-icon" id="themeIcon">🌙</span>
+                                <span class="option-text" id="themeText" data-i18n="dark_mode">Modo Oscuro</span>
+                                <span class="option-value" id="themeValue">ON</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Language Selector -->
+                        <div class="settings-section">
+                            <div class="settings-label" data-i18n="language_label">Idioma</div>
+                            <!-- Buscador de idiomas -->
+                            <div class="language-search-wrapper">
+                                <input type="text" 
+                                       class="language-search" 
+                                       id="languageSearch" 
+                                       placeholder="🔍 Buscar idioma..." 
+                                       onkeyup="filterLanguages(this.value)">
+                            </div>
+                            <div class="language-options" id="languageOptions">
+                                <div class="language-option-simple" onclick="changeLanguage('en')">
+                                    <span class="flag">🇺🇸</span> English
+                                    <span class="current-lang-indicator" data-lang="en">✓</span>
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('es')">
+                                    <span class="flag">🇪🇸</span> Español
+                                    <span class="current-lang-indicator" data-lang="es">✓</span>
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('fr')">
+                                    <span class="flag">🇫🇷</span> Français
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('de')">
+                                    <span class="flag">🇩🇪</span> Deutsch
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('pt')">
+                                    <span class="flag">🇧🇷</span> Português
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('it')">
+                                    <span class="flag">🇮🇹</span> Italiano
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('ru')">
+                                    <span class="flag">🇷🇺</span> Русский
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('zh')">
+                                    <span class="flag">🇨🇳</span> 中文
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('ja')">
+                                    <span class="flag">🇯🇵</span> 日本語
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('ko')">
+                                    <span class="flag">🇰🇷</span> 한국어
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('ar')">
+                                    <span class="flag">🇸🇦</span> العربية
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('hi')">
+                                    <span class="flag">🇮🇳</span> हिन्दी
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('bn')">
+                                    <span class="flag">🇧🇩</span> বাংলা
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('tr')">
+                                    <span class="flag">🇹🇷</span> Türkçe
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('vi')">
+                                    <span class="flag">🇻🇳</span> Tiếng Việt
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('pl')">
+                                    <span class="flag">🇵🇱</span> Polski
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('uk')">
+                                    <span class="flag">🇺🇦</span> Українська
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('nl')">
+                                    <span class="flag">🇳🇱</span> Nederlands
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('th')">
+                                    <span class="flag">🇹🇭</span> ไทย
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('id')">
+                                    <span class="flag">🇮🇩</span> Indonesia
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('sv')">
+                                    <span class="flag">🇸🇪</span> Svenska
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('ro')">
+                                    <span class="flag">🇷🇴</span> Română
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('cs')">
+                                    <span class="flag">🇨🇿</span> Čeština
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('el')">
+                                    <span class="flag">🇬🇷</span> Ελληνικά
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('hu')">
+                                    <span class="flag">🇭🇺</span> Magyar
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('fi')">
+                                    <span class="flag">🇫🇮</span> Suomi
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('no')">
+                                    <span class="flag">🇳🇴</span> Norsk
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('da')">
+                                    <span class="flag">🇩🇰</span> Dansk
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('he')">
+                                    <span class="flag">🇮🇱</span> עברית
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('fa')">
+                                    <span class="flag">🇮🇷</span> فارسی
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('ms')">
+                                    <span class="flag">🇲🇾</span> Bahasa Melayu
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('sw')">
+                                    <span class="flag">🇰🇪</span> Kiswahili
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('ta')">
+                                    <span class="flag">🇱🇰</span> தமிழ்
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('te')">
+                                    <span class="flag">🇮🇳</span> తెలుగు
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('mr')">
+                                    <span class="flag">🇮🇳</span> मराठी
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('ur')">
+                                    <span class="flag">🇵🇰</span> اردو
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('ca')">
+                                    <span class="flag">🏴</span> Català
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('sk')">
+                                    <span class="flag">🇸🇰</span> Slovenčina
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('bg')">
+                                    <span class="flag">🇧🇬</span> Български
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('sr')">
+                                    <span class="flag">🇷🇸</span> Српски
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('hr')">
+                                    <span class="flag">🇭🇷</span> Hrvatski
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('lt')">
+                                    <span class="flag">🇱🇹</span> Lietuvių
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('lv')">
+                                    <span class="flag">🇱🇻</span> Latviešu
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('et')">
+                                    <span class="flag">🇪🇪</span> Eesti
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('sl')">
+                                    <span class="flag">🇸🇮</span> Slovenščina
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('sq')">
+                                    <span class="flag">🇦🇱</span> Shqip
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('mk')">
+                                    <span class="flag">🇲🇰</span> Македонски
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('bs')">
+                                    <span class="flag">🇧🇦</span> Bosanski
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('is')">
+                                    <span class="flag">🇮🇸</span> Íslenska
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('ga')">
+                                    <span class="flag">🇮🇪</span> Gaeilge
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('cy')">
+                                    <span class="flag">🏴󠁧󠁢󠁷󠁬󠁳󠁿</span> Cymraeg
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('eu')">
+                                    <span class="flag">🏴</span> Euskara
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('gl')">
+                                    <span class="flag">🏴󠁧󠁬󠁳󠁿</span> Galego
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('af')">
+                                    <span class="flag">🇿🇦</span> Afrikaans
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('zu')">
+                                    <span class="flag">🇿🇦</span> isiZulu
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('xh')">
+                                    <span class="flag">🇿🇦</span> isiXhosa
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('am')">
+                                    <span class="flag">🇪🇹</span> አማርኛ
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('ha')">
+                                    <span class="flag">🇳🇬</span> Hausa
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('yo')">
+                                    <span class="flag">🇳🇬</span> Yorùbá
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('ig')">
+                                    <span class="flag">🇳🇬</span> Igbo
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('km')">
+                                    <span class="flag">🇰🇭</span> ខ្មែរ
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('lo')">
+                                    <span class="flag">🇱🇦</span> ລາວ
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('my')">
+                                    <span class="flag">🇲🇲</span> မြန်မာ
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('ne')">
+                                    <span class="flag">🇳🇵</span> नेपाली
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('si')">
+                                    <span class="flag">🇱🇰</span> සිංහල
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('kn')">
+                                    <span class="flag">🇮🇳</span> ಕನ್ನಡ
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('ml')">
+                                    <span class="flag">🇮🇳</span> മലയാളം
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('gu')">
+                                    <span class="flag">🇮🇳</span> ગુજરાતી
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('pa')">
+                                    <span class="flag">🇮🇳</span> ਪੰਜਾਬੀ
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('sd')">
+                                    <span class="flag">🇵🇰</span> سنڌي
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('ps')">
+                                    <span class="flag">🇦🇫</span> پښتو
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('ku')">
+                                    <span class="flag">🇮🇶</span> کوردی
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('az')">
+                                    <span class="flag">🇦🇿</span> Azərbaycan
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('uz')">
+                                    <span class="flag">🇺🇿</span> O'zbek
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('kk')">
+                                    <span class="flag">🇰🇿</span> Қазақ
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('ky')">
+                                    <span class="flag">🇰🇬</span> Кыргызча
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('tg')">
+                                    <span class="flag">🇹🇯</span> Тоҷикӣ
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('tk')">
+                                    <span class="flag">🇹🇲</span> Türkmen
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('mn')">
+                                    <span class="flag">🇲🇳</span> Монгол
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('ka')">
+                                    <span class="flag">🇬🇪</span> ქართული
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('hy')">
+                                    <span class="flag">🇦🇲</span> Հայերեն
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('mt')">
+                                    <span class="flag">🇲🇹</span> Malti
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('lb')">
+                                    <span class="flag">🇱🇺</span> Lëtzebuergesch
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('tl')">
+                                    <span class="flag">🇵🇭</span> Tagalog
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('ceb')">
+                                    <span class="flag">🇵🇭</span> Cebuano
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('jv')">
+                                    <span class="flag">🇮🇩</span> Basa Jawa
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('su')">
+                                    <span class="flag">🇮🇩</span> Basa Sunda
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('mg')">
+                                    <span class="flag">🇲🇬</span> Malagasy
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('so')">
+                                    <span class="flag">🇸🇴</span> Soomaali
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('yi')">
+                                    <span class="flag">🕎</span> ייִדיש
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('la')">
+                                    <span class="flag">🏛️</span> Latina
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('eo')">
+                                    <span class="flag">⭐</span> Esperanto
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('ht')">
+                                    <span class="flag">🇭🇹</span> Kreyòl Ayisyen
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('hmn')">
+                                    <span class="flag">🏔️</span> Hmoob
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('ny')">
+                                    <span class="flag">🇲🇼</span> Chichewa
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('sn')">
+                                    <span class="flag">🇿🇼</span> Shona
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('st')">
+                                    <span class="flag">🇱🇸</span> Sesotho
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('gd')">
+                                    <span class="flag">🏴󠁧󠁢󠁳󠁣󠁴󠁿</span> Gàidhlig
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('co')">
+                                    <span class="flag">🇫🇷</span> Corsu
+                                </div>
+                                <div class="language-option-simple" onclick="changeLanguage('fy')">
+                                    <span class="flag">🇳🇱</span> Frysk
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <h1 class="main-title" data-i18n="main_title">✨ Trimvert</h1>
+            <p class="subtitle" data-i18n="subtitle">🎬 Download, trim and convert media from 1000+ platforms in the best quality</p>
         </header>
 
         <main>
-            <div class="input-section">
-                <input 
-                    type="text" 
-                    id="urlInput" 
-                    placeholder="🔗 Pega aquí el enlace de tu video o canción favorita..."
-                    autocomplete="off"
-                >
-                <button id="getFormatsBtn" onclick="getFormats()">🔍 Buscar</button>
+            <div class="tabs main-tabs">
+                <button class="tab-btn active" onclick="switchMainTab('url')" data-i18n="tab_url">🔗 Desde URL</button>
+                <button class="tab-btn" onclick="switchMainTab('upload')" data-i18n="tab_trim">✂️ Recortar Archivo</button>
+                <button class="tab-btn" onclick="switchMainTab('convert')" data-i18n="tab_convert">🔄 Convertir Formato</button>
+            </div>
+
+            <div id="urlSection" class="main-section">
+                <div class="input-section">
+                    <input 
+                        type="text" 
+                        id="urlInput" 
+                        placeholder="🔗 Pega aquí el enlace de tu video o canción favorita..."
+                        data-i18n="url_placeholder"
+                        autocomplete="off"
+                    >
+                    <button id="getFormatsBtn" onclick="getFormats()" data-i18n="search_btn">🔍 Buscar</button>
+                </div>
+            </div>
+
+            <div id="uploadSection" class="main-section hidden">
+                <div class="upload-section">
+                    <input 
+                        type="file" 
+                        id="fileInput" 
+                        accept="video/*,audio/*"
+                        style="display: none;"
+                        onchange="handleFileSelect(event)"
+                    >
+                    <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+                        <div class="upload-icon">📁</div>
+                        <h3 data-i18n="upload_area_title">Haz clic o arrastra un archivo aquí</h3>
+                        <p data-i18n="upload_area_desc">Formatos soportados: MP4, AVI, MKV, MOV, MP3, WAV, etc.</p>
+                        <p class="file-size-limit" data-i18n="no_size_limit">Sin límite de tamaño de archivo</p>
+                    </div>
+                    <div id="uploadedFileInfo" class="uploaded-file-info hidden">
+                        <h3>📄 <span data-i18n="file_selected">Archivo seleccionado:</span></h3>
+                        <p id="uploadedFileName"></p>
+                        <p id="uploadedFileSize"></p>
+                        <p id="uploadedFileDuration"></p>
+                        
+                        <div class="trim-controls" style="margin-top: 20px;">
+                            <div class="time-input-group">
+                                <label for="uploadStartTime" data-i18n="time_start">⏱️ Tiempo de Inicio:</label>
+                                <input type="text" id="uploadStartTime" placeholder="00:00:00" value="00:00:00" pattern="[0-9]{2}:[0-9]{2}:[0-9]{2}" oninput="calculateUploadTrimSize()">
+                                <small data-i18n="time_format">Formato: HH:MM:SS</small>
+                            </div>
+                            
+                            <div class="time-input-group">
+                                <label for="uploadEndTime" data-i18n="time_end">⏱️ Tiempo Final:</label>
+                                <input type="text" id="uploadEndTime" placeholder="00:01:00" pattern="[0-9]{2}:[0-9]{2}:[0-9]{2}" oninput="calculateUploadTrimSize()">
+                                <small data-i18n="time_format">Formato: HH:MM:SS</small>
+                            </div>
+                        </div>
+                        
+                        <div id="uploadTrimEstimate" class="trim-estimate hidden" style="margin-top: 15px;">
+                            <p>📊 <strong data-i18n="estimated_size">Tamaño aproximado del recorte:</strong> <span id="uploadEstimatedSize">-</span></p>
+                        </div>
+                        
+                        <button class="download-btn" onclick="trimUploadedFile()" style="margin-top: 20px;" data-i18n="trim_download_btn">
+                            ✂️ Recortar y Descargar
+                        </button>
+                        
+                        <div id="uploadTrimProgress" class="trim-progress hidden">
+                            <div class="progress-bar-container">
+                                <div class="progress-bar" id="uploadProgressBar">
+                                    <span class="progress-percentage" id="uploadProgressPercentage">0%</span>
+                                </div>
+                            </div>
+                            <p id="uploadTrimStatus">Procesando...</p>
+                            <p id="uploadTrimDetails" class="progress-details"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="convertSection" class="main-section hidden">
+                <div class="upload-section">
+                    <input 
+                        type="file" 
+                        id="convertFileInput" 
+                        accept="video/*,audio/*"
+                        onchange="handleConvertFileSelect(event)"
+                        style="display: none;"
+                    >
+                    <div id="convertUploadArea" class="upload-area" onclick="document.getElementById('convertFileInput').click()">
+                        <div class="upload-icon">📁</div>
+                        <h3 data-i18n="convert_upload_title">Haz clic o arrastra un archivo aquí</h3>
+                        <p data-i18n="convert_upload_desc">Acepta archivos de video y audio</p>
+                    </div>
+                    
+                    <div id="convertFileInfo" class="uploaded-file-info hidden">
+                        <h3>📄 <span data-i18n="file_selected">Archivo seleccionado:</span></h3>
+                        <p id="convertFileName"></p>
+                        <p id="convertFileSize"></p>
+                        
+                        <div class="format-selector" style="margin-top: 20px;">
+                            <label for="outputFormat"><strong data-i18n="convert_to">🔄 Convertir a:</strong></label>
+                            <select id="outputFormat" class="format-select">
+                                <option value="" data-i18n="select_format">-- Selecciona un formato --</option>
+                                <optgroup label="🎵 Audio">
+                                    <option value="mp3" data-i18n="format_mp3">MP3 (más compatible)</option>
+                                    <option value="wav" data-i18n="format_wav">WAV (sin pérdida)</option>
+                                    <option value="aac" data-i18n="format_aac">AAC (alta calidad)</option>
+                                    <option value="flac" data-i18n="format_flac">FLAC (sin pérdida)</option>
+                                    <option value="ogg" data-i18n="format_ogg">OGG (Vorbis)</option>
+                                    <option value="m4a" data-i18n="format_m4a">M4A (Apple)</option>
+                                </optgroup>
+                                <optgroup label="🎬 Video">
+                                    <option value="mp4" data-i18n="format_mp4">MP4 (más compatible)</option>
+                                    <option value="mkv" data-i18n="format_mkv">MKV (alta calidad)</option>
+                                    <option value="avi" data-i18n="format_avi">AVI (compatible)</option>
+                                    <option value="webm" data-i18n="format_webm">WebM (web)</option>
+                                    <option value="mov" data-i18n="format_mov">MOV (Apple)</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                        
+                        <button class="download-btn" onclick="convertFile()" style="margin-top: 20px;" data-i18n="convert_btn">
+                            🔄 Convertir Archivo
+                        </button>
+                        
+                        <div id="convertProgress" class="trim-progress hidden">
+                            <div class="progress-bar-container">
+                                <div class="progress-bar" id="convertProgressBar">
+                                    <span class="progress-percentage" id="convertProgressPercentage">0%</span>
+                                </div>
+                            </div>
+                            <p id="convertStatus">Procesando...</p>
+                            <p id="convertDetails" class="progress-details"></p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div id="loading" class="loading hidden">
@@ -41,86 +507,108 @@
                 </div>
 
                 <div class="tabs">
-                    <button class="tab-btn active" onclick="switchTab('video')">🎬 Video</button>
-                    <button class="tab-btn" onclick="switchTab('audio')">🎵 Audio</button>
-                    <button class="tab-btn" onclick="switchTab('trim')">✂️ Recortar</button>
-                    <button class="tab-btn" onclick="switchTab('thumbnail')">🖼️ Portada</button>
+                    <button class="tab-btn active" onclick="switchTab('video')" data-i18n="subtab_video">🎬 Video</button>
+                    <button class="tab-btn" onclick="switchTab('audio')" data-i18n="subtab_audio">🎵 Audio</button>
+                    <button class="tab-btn" onclick="switchTab('trim')" data-i18n="subtab_trim">✂️ Recortar</button>
+                    <button class="tab-btn" onclick="switchTab('thumbnail')" data-i18n="subtab_thumbnail">🖼️ Portada</button>
                 </div>
 
                 <div id="trimSection" class="formats-section hidden">
-                    <h3>✂️ Recortar Video/Audio</h3>
-                    <p class="trim-description">Selecciona el intervalo de tiempo que deseas extraer</p>
+                    <h3 data-i18n="trim_section_title">✂️ Recortar Video/Audio</h3>
+                    <p class="trim-description" data-i18n="trim_description">Selecciona el intervalo de tiempo y calidad que deseas extraer</p>
+                    
+                    <div id="trimVideoInfo" class="trim-video-info hidden">
+                        <div class="trim-info-card">
+                            <p><strong data-i18n="video_label">📹 Video:</strong> <span id="trimVideoTitle"></span></p>
+                            <p><strong data-i18n="total_duration">⏱️ Duración total:</strong> <span id="trimVideoDuration"></span></p>
+                        </div>
+                    </div>
+                    
+                    <div class="trim-quality-selector hidden" id="trimQualitySection">
+                        <label for="trimQuality" data-i18n="trim_quality">🎬 Calidad del Video:</label>
+                        <select id="trimQuality">
+                            <option value="best" data-i18n="best_quality">Mejor calidad disponible</option>
+                        </select>
+                    </div>
                     
                     <div class="trim-controls">
                         <div class="time-input-group">
-                            <label for="startTime">⏱️ Tiempo de Inicio:</label>
+                            <label for="startTime" data-i18n="time_start">⏱️ Tiempo de Inicio:</label>
                             <input type="text" id="startTime" placeholder="00:00:00" value="00:00:00" pattern="[0-9]{2}:[0-9]{2}:[0-9]{2}">
-                            <small>Formato: HH:MM:SS</small>
+                            <small data-i18n="time_format">Formato: HH:MM:SS</small>
                         </div>
                         
                         <div class="time-input-group">
-                            <label for="endTime">⏱️ Tiempo Final:</label>
+                            <label for="endTime" data-i18n="time_end">⏱️ Tiempo Final:</label>
                             <input type="text" id="endTime" placeholder="00:01:00" pattern="[0-9]{2}:[0-9]{2}:[0-9]{2}">
-                            <small>Formato: HH:MM:SS</small>
+                            <small data-i18n="time_format">Formato: HH:MM:SS</small>
                         </div>
                     </div>
                     
-                    <div class="trim-examples">
-                        <p><strong>💡 Ejemplos:</strong></p>
-                        <button class="example-btn" onclick="setTrimExample('00:00:00', '00:00:30')">Primeros 30 segundos</button>
-                        <button class="example-btn" onclick="setTrimExample('00:00:00', '00:01:00')">Primer minuto</button>
-                        <button class="example-btn" onclick="setTrimExample('00:00:30', '00:01:30')">De 0:30 a 1:30</button>
+                    <div id="trimEstimate" class="trim-estimate hidden">
+                        <p><strong data-i18n="estimated_size">📦 Tamaño estimado:</strong> <span id="estimatedSize">Calculando...</span></p>
+                        <p><strong data-i18n="estimated_time">⏳ Tiempo estimado:</strong> <span id="estimatedTime">Calculando...</span></p>
                     </div>
                     
-                    <button class="download-btn trim-btn" onclick="trimVideo()">
+                    <div class="trim-examples">
+                        <p><strong data-i18n="examples_label">💡 Ejemplos:</strong></p>
+                        <button class="example-btn" onclick="setTrimExample('00:00:00', '00:00:30')" data-i18n="example_30s">Primeros 30 segundos</button>
+                        <button class="example-btn" onclick="setTrimExample('00:00:00', '00:01:00')" data-i18n="example_1min">Primer minuto</button>
+                        <button class="example-btn" onclick="setTrimExample('00:00:30', '00:01:30')" data-i18n="example_range">De 0:30 a 1:30</button>
+                    </div>
+                    
+                    <button class="download-btn trim-btn" onclick="trimVideo()" data-i18n="trim_download_btn">
                         ✂️ Recortar y Descargar
                     </button>
                     
                     <div id="trimProgress" class="trim-progress hidden">
-                        <div class="spinner"></div>
-                        <p id="trimStatus">Procesando...</p>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" id="trimProgressBar"></div>
+                        </div>
+                        <p id="trimStatus" data-i18n="processing">Procesando...</p>
+                        <p id="trimDetails" class="progress-details"></p>
                     </div>
                 </div>
 
                 <div id="videoFormats" class="formats-section">
-                    <h3>🎬 Formatos de Video Disponibles</h3>
+                    <h3 data-i18n="video_formats">🎬 Formatos de Video Disponibles</h3>
                     <div class="format-selector">
-                        <label for="videoOutputFormat">🔄 Formato de Salida:</label>
+                        <label for="videoOutputFormat" data-i18n="output_format">🔄 Formato de Salida:</label>
                         <select id="videoOutputFormat">
-                            <option value="mp4">MP4 (Recomendado)</option>
-                            <option value="webm">WebM</option>
-                            <option value="mkv">MKV</option>
-                            <option value="avi">AVI</option>
-                            <option value="mov">MOV</option>
+                            <option value="mp4" data-i18n="format_mp4_recommended">MP4 (Recomendado)</option>
+                            <option value="webm" data-i18n="format_webm">WebM</option>
+                            <option value="mkv" data-i18n="format_mkv">MKV</option>
+                            <option value="avi" data-i18n="format_avi">AVI</option>
+                            <option value="mov" data-i18n="format_mov">MOV</option>
                         </select>
                     </div>
                     <div id="videoFormatsList" class="formats-list"></div>
                 </div>
 
                 <div id="audioFormats" class="formats-section hidden">
-                    <h3>🎵 Formatos de Audio Disponibles</h3>
+                    <h3 data-i18n="audio_formats">🎵 Formatos de Audio Disponibles</h3>
                     <div class="format-selector">
-                        <label for="audioOutputFormat">🔄 Formato de Salida:</label>
+                        <label for="audioOutputFormat" data-i18n="output_format">🔄 Formato de Salida:</label>
                         <select id="audioOutputFormat">
-                            <option value="mp3">MP3 (Recomendado)</option>
-                            <option value="m4a">M4A</option>
-                            <option value="wav">WAV</option>
-                            <option value="flac">FLAC</option>
-                            <option value="ogg">OGG</option>
-                            <option value="opus">OPUS</option>
+                            <option value="mp3" data-i18n="format_mp3_recommended">MP3 (Recomendado)</option>
+                            <option value="m4a" data-i18n="format_m4a">M4A</option>
+                            <option value="wav" data-i18n="format_wav">WAV</option>
+                            <option value="flac" data-i18n="format_flac">FLAC</option>
+                            <option value="ogg" data-i18n="format_ogg">OGG</option>
+                            <option value="opus" data-i18n="format_opus">OPUS</option>
                         </select>
                     </div>
                     <div id="audioFormatsList" class="formats-list"></div>
                 </div>
 
                 <div id="thumbnailFormats" class="formats-section hidden">
-                    <h3>🖼️ Portadas Disponibles</h3>
+                    <h3 data-i18n="thumbnail_formats">🖼️ Portadas Disponibles</h3>
                     <div class="format-selector">
-                        <label for="thumbnailFormat">🔄 Formato de Imagen:</label>
+                        <label for="thumbnailFormat" data-i18n="image_format">🔄 Formato de Imagen:</label>
                         <select id="thumbnailFormat">
-                            <option value="jpg">JPG (Recomendado)</option>
-                            <option value="png">PNG</option>
-                            <option value="webp">WebP</option>
+                            <option value="jpg" data-i18n="format_jpg_recommended">JPG (Recomendado)</option>
+                            <option value="png" data-i18n="format_png">PNG</option>
+                            <option value="webp" data-i18n="format_webp">WebP</option>
                         </select>
                     </div>
                     <div id="thumbnailsList" class="formats-list"></div>
@@ -128,7 +616,7 @@
             </div>
 
             <div id="downloadProgress" class="download-progress hidden">
-                <h3>🚀 Descargando tu contenido...</h3>
+                <h3 data-i18n="downloading">🚀 Descargando tu contenido...</h3>
                 <div class="progress-bar">
                     <div id="progressFill" class="progress-fill"></div>
                 </div>
@@ -136,6 +624,57 @@
                 <p id="progressSpeed"></p>
             </div>
         </main>
+
+        <!-- Botones flotantes de utilidad -->
+        <div class="floating-actions">
+            <!-- Botón scroll to top -->
+            <button class="float-btn scroll-top-btn" id="scrollTopBtn" onclick="scrollToTop()" title="Volver arriba">
+                ↑
+            </button>
+            <!-- Botón clipboard paste -->
+            <button class="float-btn clipboard-btn" onclick="pasteFromClipboard()" title="Pegar desde portapapeles (Ctrl+V)">
+                📋
+            </button>
+            <!-- Botón modo teatro -->
+            <button class="float-btn theater-btn" id="theaterBtn" onclick="toggleTheaterMode()" title="Modo Teatro (F)">
+                🎬
+            </button>
+        </div>
+
+        <!-- Indicador de shortcuts -->
+        <div class="shortcuts-hint collapsed" id="shortcutsHint">
+            <button class="shortcuts-toggle" onclick="toggleShortcuts()" title="Ver atajos de teclado" aria-label="Mostrar/Ocultar atajos de teclado">
+                <span class="toggle-arrow">▼</span>
+            </button>
+            <div class="hint-content">
+                <strong>⌨️ Atajos de teclado:</strong><br>
+                <span>Ctrl+V - Pegar URL</span>
+                <span>Enter - Buscar</span>
+                <span>F - Modo Teatro</span>
+                <span>T - Modo Enfoque (en teatro)</span>
+                <span>F11 - Pantalla completa</span>
+                <span>Esc - Salir/Cerrar</span>
+                <span>? - Mostrar ayuda</span>
+            </div>
+        </div>
+
+        <!-- Controles de modo teatro -->
+        <div class="theater-controls" id="theaterControls">
+            <div class="theater-control-panel">
+                <button class="theater-control-btn" onclick="toggleTheaterMode()" title="Salir del modo teatro (F o Esc)">
+                    <span class="btn-icon">❌</span>
+                    <span class="btn-text">Salir</span>
+                </button>
+                <button class="theater-control-btn" onclick="toggleTheaterFullscreen()" title="Pantalla completa (F11)">
+                    <span class="btn-icon">⛶</span>
+                    <span class="btn-text">Pantalla completa</span>
+                </button>
+                <button class="theater-control-btn" onclick="toggleTheaterFocus()" title="Modo enfoque">
+                    <span class="btn-icon">🎯</span>
+                    <span class="btn-text" id="focusText">Enfocar</span>
+                </button>
+            </div>
+        </div>
 
         <footer>
             <p style="font-size: 1.1rem; margin-bottom: 15px;">✨ <strong>Compatible con 1000+ Plataformas:</strong> YouTube, Instagram, TikTok, Facebook, Twitter, Reddit, Twitch, Dailymotion y muchísimas más</p>
@@ -212,5 +751,6 @@
     </div>
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script src="{{ url_for('static', filename='translations.js') }}"></script>
 </body>
 </html>

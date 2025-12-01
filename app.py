@@ -10,8 +10,16 @@ import subprocess
 
 app = Flask(__name__)
 
-# Carpeta para descargas temporales
-DOWNLOAD_FOLDER = os.path.join(os.getcwd(), 'downloads')
+# Configuración para permitir archivos grandes sin límite
+app.config['MAX_CONTENT_LENGTH'] = None  # Sin límite de tamaño
+
+# Configuración de cacheo para archivos estáticos
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # No cachear en desarrollo
+
+# Carpeta para descargas temporales - Por defecto en disco local
+# El usuario puede cambiarla desde la interfaz
+DEFAULT_DOWNLOAD_FOLDER = os.path.join('C:\\', 'Temp', 'descargardepags')
+DOWNLOAD_FOLDER = DEFAULT_DOWNLOAD_FOLDER
 COOKIES_FILE = os.path.join(os.getcwd(), 'youtube_cookies.txt')
 os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 
@@ -560,29 +568,124 @@ def cookies_status():
         'cookies_file': COOKIES_FILE
     })
 
-@app.route('/trim_video', methods=['POST'])
-def trim_video():
-    """Recorta un video/audio desde un URL usando descarga directa con ffmpeg"""
+@app.route('/get_trim_info', methods=['POST'])
+def get_trim_info():
+    """Obtiene información del video para calcular el tamaño estimado del recorte"""
     try:
         data = request.get_json()
         url = data.get('url')
-        start_time = data.get('start_time', '00:00:00')  # Formato: HH:MM:SS
-        end_time = data.get('end_time')
         
         if not url:
             return jsonify({'error': 'Debe proporcionar una URL'}), 400
         
+        # Obtener información del video
+        ydl_opts = {
+            'quiet': True,
+            'no_warnings': True,
+            'skip_download': True,
+        }
+        
+        if os.path.exists(COOKIES_FILE) and os.path.getsize(COOKIES_FILE) > 0:
+            ydl_opts['cookiefile'] = COOKIES_FILE
+        
+        print(f"[TRIM INFO] Obteniendo información del video: {url}")
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            
+            # Obtener formatos disponibles
+            formats = []
+            if 'formats' in info:
+                seen_qualities = set()
+                for f in info['formats']:
+                    if f.get('vcodec') != 'none' and f.get('height'):
+                        height = f.get('height')
+                        quality = f'{height}p'
+                        
+                        if quality not in seen_qualities:
+                            seen_qualities.add(quality)
+                            formats.append({
+                                'quality': quality,
+                                'quality_label': quality,  # Para mostrar en el selector
+                                'height': height,
+                                'format_id': f.get('format_id'),
+                                'ext': f.get('ext', 'mp4'),
+                                'filesize': f.get('filesize') or f.get('filesize_approx', 0),
+                                'tbr': f.get('tbr', 0),  # Total bitrate
+                            })
+                
+                # Ordenar por calidad (mayor a menor)
+                formats.sort(key=lambda x: x['height'], reverse=True)
+            
+            duration = info.get('duration', 0)
+            
+            return jsonify({
+                'success': True,
+                'title': info.get('title', 'Video'),
+                'duration': duration,
+                'duration_formatted': f"{int(duration // 60)}:{int(duration % 60):02d}" if duration else "Desconocida",
+                'formats': formats[:8],  # Limitar a las 8 mejores calidades
+                'thumbnail': info.get('thumbnail', '')
+            })
+        
+    except Exception as e:
+        print(f"[ERROR TRIM INFO] {str(e)}")
+        return jsonify({'error': f'Error al obtener información: {str(e)}'}), 500
+
+@app.route('/trim_video', methods=['POST'])
+def trim_video():
+    """Recorta un video/audio desde un URL usando descarga directa con ffmpeg"""
+    try:
+        print("[TRIM] Iniciando proceso de recorte...", flush=True)
+        data = request.get_json()
+        print(f"[TRIM] Datos recibidos: {data}", flush=True)
+        
+        url = data.get('url')
+        start_time = data.get('start_time', '00:00:00')  # Formato: HH:MM:SS
+        end_time = data.get('end_time')
+        quality = data.get('quality', 'best')  # Nueva: calidad seleccionada
+        
+        print(f"[TRIM] URL: {url}, Inicio: {start_time}, Fin: {end_time}, Calidad: {quality}", flush=True)
+        
+        if not url:
+            print("[TRIM ERROR] No se proporcionó URL", flush=True)
+            return jsonify({'error': 'Debe proporcionar una URL'}), 400
+        
         if not end_time:
+            print("[TRIM ERROR] No se especificó tiempo final", flush=True)
             return jsonify({'error': 'Debe especificar el tiempo final'}), 400
         
         # Generar ID único para la descarga
         download_id = str(uuid.uuid4())
         filename = f"trimmed_{download_id}.mp4"
+        temp_file = os.path.join(DOWNLOAD_FOLDER, f"temp_{download_id}")
         output_file = os.path.join(DOWNLOAD_FOLDER, filename)
         
-        # Obtener la URL directa del video
+        # Construir selector de formato
+        if quality and quality != 'best' and quality.endswith('p'):
+            height = quality.replace('p', '')
+            format_selector = f'bestvideo[height<={height}]+bestaudio/best[height<={height}]'
+        else:
+            format_selector = 'bestvideo+bestaudio/best'
+        
+        print(f"[TRIM] Selector de formato: {format_selector}", flush=True)
+        
+        # Calcular duración del segmento
+        def time_to_seconds(time_str):
+            parts = time_str.split(':')
+            return int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+        
+        start_seconds = time_to_seconds(start_time)
+        end_seconds = time_to_seconds(end_time)
+        duration_seconds = end_seconds - start_seconds
+        
+        print(f"[TRIM] Segmento: {start_time} ({start_seconds}s) hasta {end_time} ({end_seconds}s) = {duration_seconds}s", flush=True)
+        
+        # MÉTODO SIMPLE: Descargar video completo y recortar
+        print(f"[TRIM] Descargando video completo...", flush=True)
+        
         ydl_opts = {
-            'format': 'best[ext=mp4]/best',
+            'format': format_selector,
+            'outtmpl': temp_file,
             'quiet': True,
             'no_warnings': True,
         }
@@ -590,37 +693,57 @@ def trim_video():
         if os.path.exists(COOKIES_FILE) and os.path.getsize(COOKIES_FILE) > 0:
             ydl_opts['cookiefile'] = COOKIES_FILE
         
-        print(f"[TRIM] Obteniendo URL directa del video: {url}")
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            if 'url' in info:
-                direct_url = info['url']
-            elif 'entries' in info:
-                direct_url = info['entries'][0]['url']
-            else:
-                return jsonify({'error': 'No se pudo obtener la URL directa del video'}), 500
+            ydl.download([url])
         
-        # Usar ffmpeg para descargar SOLO el segmento necesario (sin descargar todo)
-        # -ss antes de -i hace que ffmpeg busque directamente sin descargar todo
-        print(f"[TRIM] Recortando desde {start_time} hasta {end_time} (descarga optimizada)")
+        print(f"[TRIM] Descarga completada, buscando archivo...", flush=True)
+        
+        # Buscar el archivo descargado (puede tener extensión diferente)
+        downloaded_file = None
+        for file in os.listdir(DOWNLOAD_FOLDER):
+            if file.startswith(f"temp_{download_id}"):
+                downloaded_file = os.path.join(DOWNLOAD_FOLDER, file)
+                print(f"[TRIM] Archivo encontrado: {downloaded_file}", flush=True)
+                break
+        
+        if not downloaded_file or not os.path.exists(downloaded_file):
+            print(f"[TRIM ERROR] No se encontró el archivo descargado", flush=True)
+            return jsonify({'error': 'Error al descargar el video'}), 500
+        
+        # Recortar con ffmpeg
+        print(f"[TRIM] Recortando con ffmpeg...", flush=True)
         cmd = [
             'ffmpeg',
-            '-ss', start_time,  # Posición de inicio (ANTES de -i para optimizar)
-            '-i', direct_url,    # URL directa del video
-            '-to', end_time,     # Posición final
-            '-c', 'copy',        # Copiar sin re-encodear (más rápido)
-            '-y',                # Sobrescribir sin preguntar
+            '-ss', str(start_seconds),   # Seek ANTES de input (más rápido y preciso)
+            '-i', downloaded_file,
+            '-t', str(duration_seconds),
+            '-c:v', 'copy',              # Copiar video sin re-encodear
+            '-c:a', 'copy',              # Copiar audio sin re-encodear
+            '-map', '0:v:0',             # Solo primer stream de video
+            '-map', '0:a:0',             # Solo primer stream de audio
+            '-map_metadata', '-1',       # Eliminar metadatos innecesarios
+            '-fflags', '+genpts',        # Regenerar timestamps
+            '-movflags', '+faststart',   # Optimizar para streaming
+            '-y',
             output_file
         ]
         
         result = subprocess.run(cmd, capture_output=True, text=True)
         
+        # Eliminar archivo temporal
+        if os.path.exists(downloaded_file):
+            os.remove(downloaded_file)
+            print(f"[TRIM] Archivo temporal eliminado", flush=True)
+        
         if result.returncode != 0:
-            print(f"[ERROR TRIM] {result.stderr}")
+            print(f"[ERROR TRIM ffmpeg] {result.stderr}", flush=True)
             return jsonify({'error': f'Error al recortar: {result.stderr}'}), 500
         
         if not os.path.exists(output_file):
+            print(f"[TRIM ERROR] El archivo recortado no se creó", flush=True)
             return jsonify({'error': 'Error al generar el archivo recortado'}), 500
+        
+        print(f"[TRIM] Proceso completado exitosamente: {output_file}", flush=True)
         
         # Obtener tamaño del archivo
         file_size = os.path.getsize(output_file)
@@ -659,7 +782,258 @@ def download_trimmed(download_id):
         return jsonify({'error': 'Archivo no encontrado'}), 404
         
     except Exception as e:
+        print(f"[ERROR DOWNLOAD] {str(e)}")
+        return jsonify({'error': f'Error al descargar: {str(e)}'}), 500
+
+@app.route('/trim_uploaded', methods=['POST'])
+def trim_uploaded():
+    """Recorta un archivo de video/audio subido por el usuario"""
+    try:
+        print("[TRIM UPLOAD] Iniciando proceso de recorte de archivo subido...", flush=True)
+        
+        if 'file' not in request.files:
+            return jsonify({'error': 'No se proporcionó ningún archivo'}), 400
+        
+        file = request.files['file']
+        start_time = request.form.get('start_time', '00:00:00')
+        end_time = request.form.get('end_time')
+        
+        if not end_time:
+            return jsonify({'error': 'Debe especificar el tiempo final'}), 400
+        
+        if file.filename == '':
+            return jsonify({'error': 'Nombre de archivo vacío'}), 400
+        
+        # Verificar espacio en disco disponible
+        import shutil
+        disk_usage = shutil.disk_usage(DOWNLOAD_FOLDER)
+        free_space_gb = disk_usage.free / (1024**3)
+        
+        # Estimar espacio necesario (archivo original + recortado)
+        # Como no sabemos el tamaño exacto del archivo hasta guardarlo, 
+        # verificamos después de guardar
+        
+        print(f"[TRIM UPLOAD] Archivo: {file.filename}", flush=True)
+        print(f"[TRIM UPLOAD] Espacio libre en disco: {free_space_gb:.2f} GB", flush=True)
+        print(f"[TRIM UPLOAD] Inicio: {start_time}, Fin: {end_time}", flush=True)
+        
+        if free_space_gb < 1:
+            return jsonify({'error': f'Espacio insuficiente en disco. Solo quedan {free_space_gb:.2f} GB libres. Libera al menos 5 GB para procesar archivos grandes.'}), 507
+        
+        # Generar ID único
+        download_id = str(uuid.uuid4())
+        
+        # Guardar archivo subido temporalmente
+        file_ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'mp4'
+        temp_input = os.path.join(DOWNLOAD_FOLDER, f"upload_{download_id}.{file_ext}")
+        
+        print(f"[TRIM UPLOAD] Guardando archivo temporalmente...", flush=True)
+        file.save(temp_input)
+        
+        # Verificar tamaño del archivo guardado
+        file_size_gb = os.path.getsize(temp_input) / (1024**3)
+        print(f"[TRIM UPLOAD] Archivo guardado: {temp_input} ({file_size_gb:.2f} GB)", flush=True)
+        
+        # Calcular duración del segmento
+        def time_to_seconds(time_str):
+            parts = time_str.split(':')
+            return int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+        
+        start_seconds = time_to_seconds(start_time)
+        end_seconds = time_to_seconds(end_time)
+        duration_seconds = end_seconds - start_seconds
+        
+        print(f"[TRIM UPLOAD] Recortando: {start_seconds}s a {end_seconds}s ({duration_seconds}s de duración)", flush=True)
+        
+        # Archivo de salida
+        output_filename = f"trimmed_{download_id}.{file_ext}"
+        output_file = os.path.join(DOWNLOAD_FOLDER, output_filename)
+        
+        # Recortar con ffmpeg usando método optimizado para archivos grandes
+        # -ss ANTES de -i para buscar sin decodificar todo el archivo
+        print(f"[TRIM UPLOAD] Ejecutando ffmpeg (método optimizado para archivos grandes)...", flush=True)
+        cmd = [
+            'ffmpeg',
+            '-ss', str(start_seconds),  # Seek ANTES de input (más rápido)
+            '-i', temp_input,
+            '-t', str(duration_seconds),  # Duración a capturar
+            '-c:v', 'copy',              # Copiar video sin re-encodear
+            '-c:a', 'copy',              # Copiar audio sin re-encodear
+            '-avoid_negative_ts', '1',   # Evitar timestamps negativos
+            '-map', '0:v:0',             # Solo primer stream de video
+            '-map', '0:a:0',             # Solo primer stream de audio
+            '-map_metadata', '-1',       # Eliminar metadatos innecesarios
+            '-fflags', '+genpts',        # Regenerar timestamps
+            '-movflags', '+faststart',   # Optimizar para streaming
+            '-y',
+            output_file
+        ]
+        
+        # Ejecutar con timeout para archivos grandes
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)  # 5 minutos máximo
+        
+        # Eliminar archivo temporal
+        if os.path.exists(temp_input):
+            os.remove(temp_input)
+            print(f"[TRIM UPLOAD] Archivo temporal eliminado", flush=True)
+        
+        if result.returncode != 0:
+            print(f"[ERROR TRIM UPLOAD] {result.stderr}", flush=True)
+            return jsonify({'error': f'Error al recortar: {result.stderr}'}), 500
+        
+        if not os.path.exists(output_file):
+            print(f"[ERROR TRIM UPLOAD] El archivo recortado no se creó", flush=True)
+            return jsonify({'error': 'Error al generar el archivo recortado'}), 500
+        
+        # Obtener tamaño del archivo
+        file_size = os.path.getsize(output_file)
+        
+        print(f"[TRIM UPLOAD] Proceso completado exitosamente: {output_file} ({file_size} bytes)", flush=True)
+        
+        return jsonify({
+            'success': True,
+            'download_id': download_id,
+            'filename': output_filename,
+            'filesize': file_size,
+            'filesize_mb': round(file_size / (1024 * 1024), 2)
+        })
+        
+    except subprocess.TimeoutExpired:
+        print(f"[ERROR TRIM UPLOAD] Timeout - el proceso tardó más de 5 minutos", flush=True)
+        # Limpiar archivo temporal si existe
+        try:
+            if 'temp_input' in locals() and os.path.exists(temp_input):
+                os.remove(temp_input)
+        except:
+            pass
+        return jsonify({'error': 'El proceso tardó demasiado tiempo. Intenta con un segmento más corto o un archivo más pequeño.'}), 500
+    except Exception as e:
+        print(f"[ERROR TRIM UPLOAD] {str(e)}", flush=True)
+        # Limpiar archivo temporal si existe
+        try:
+            if 'temp_input' in locals() and os.path.exists(temp_input):
+                os.remove(temp_input)
+        except:
+            pass
+        return jsonify({'error': f'Error al procesar el archivo: {str(e)}'}), 500
+    except Exception as e:
         print(f"[ERROR] Error al enviar archivo recortado: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/convert_format', methods=['POST'])
+def convert_format():
+    """Convierte un archivo a otro formato"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': 'No se proporcionó ningún archivo'}), 400
+        
+        file = request.files['file']
+        output_format = request.form.get('output_format', '').lower()
+        
+        if not file or file.filename == '':
+            return jsonify({'error': 'Archivo inválido'}), 400
+        
+        if not output_format:
+            return jsonify({'error': 'Debe especificar un formato de salida'}), 400
+        
+        # Generar ID único
+        download_id = str(int(time.time() * 1000))
+        
+        # Guardar archivo temporal
+        file_ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'bin'
+        temp_input = os.path.join(DOWNLOAD_FOLDER, f"temp_convert_{download_id}.{file_ext}")
+        file.save(temp_input)
+        
+        file_size_gb = os.path.getsize(temp_input) / (1024**3)
+        print(f"[CONVERT] Archivo guardado: {temp_input} ({file_size_gb:.2f} GB)", flush=True)
+        print(f"[CONVERT] Convirtiendo a formato: {output_format}", flush=True)
+        
+        # Archivo de salida
+        output_filename = f"converted_{download_id}.{output_format}"
+        output_file = os.path.join(DOWNLOAD_FOLDER, output_filename)
+        
+        # Configurar parámetros de ffmpeg según el formato
+        cmd = ['ffmpeg', '-i', temp_input]
+        
+        # Configuración específica por formato
+        if output_format in ['mp3', 'aac', 'ogg', 'm4a']:
+            # Formatos de audio con pérdida - alta calidad
+            cmd.extend([
+                '-vn',  # Sin video
+                '-codec:a', 'libmp3lame' if output_format == 'mp3' else 'aac' if output_format in ['aac', 'm4a'] else 'libvorbis',
+                '-b:a', '320k',  # Bitrate alto
+                '-y',
+                output_file
+            ])
+        elif output_format in ['wav', 'flac']:
+            # Formatos sin pérdida
+            cmd.extend([
+                '-vn',  # Sin video
+                '-codec:a', 'pcm_s16le' if output_format == 'wav' else 'flac',
+                '-y',
+                output_file
+            ])
+        elif output_format in ['mp4', 'mkv', 'avi', 'webm', 'mov']:
+            # Formatos de video - mantener calidad
+            cmd.extend([
+                '-codec:v', 'libx264' if output_format in ['mp4', 'mkv', 'avi', 'mov'] else 'libvpx-vp9',
+                '-crf', '18',  # Calidad alta (rango: 0-51, menor = mejor)
+                '-preset', 'medium',
+                '-codec:a', 'aac',
+                '-b:a', '256k',
+                '-y',
+                output_file
+            ])
+        else:
+            os.remove(temp_input)
+            return jsonify({'error': f'Formato no soportado: {output_format}'}), 400
+        
+        print(f"[CONVERT] Ejecutando ffmpeg...", flush=True)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+        
+        # Eliminar archivo temporal
+        if os.path.exists(temp_input):
+            os.remove(temp_input)
+            print(f"[CONVERT] Archivo temporal eliminado", flush=True)
+        
+        if result.returncode != 0:
+            print(f"[ERROR CONVERT] {result.stderr}", flush=True)
+            return jsonify({'error': f'Error al convertir: {result.stderr}'}), 500
+        
+        if not os.path.exists(output_file):
+            return jsonify({'error': 'Error al generar el archivo convertido'}), 500
+        
+        file_size = os.path.getsize(output_file)
+        print(f"[CONVERT] Conversión completada: {output_file} ({file_size / (1024**2):.2f} MB)", flush=True)
+        
+        return jsonify({
+            'success': True,
+            'download_id': download_id,
+            'filename': output_filename,
+            'filesize_mb': round(file_size / (1024 * 1024), 2)
+        })
+        
+    except subprocess.TimeoutExpired:
+        if os.path.exists(temp_input):
+            os.remove(temp_input)
+        return jsonify({'error': 'Tiempo de conversión agotado (10 minutos)'}), 408
+    except Exception as e:
+        print(f"[ERROR CONVERT] {str(e)}", flush=True)
+        if 'temp_input' in locals() and os.path.exists(temp_input):
+            os.remove(temp_input)
+        return jsonify({'error': f'Error al convertir el archivo: {str(e)}'}), 500
+
+@app.route('/download_converted/<download_id>')
+def download_converted(download_id):
+    """Descarga el archivo convertido"""
+    try:
+        for filename in os.listdir(DOWNLOAD_FOLDER):
+            if filename.startswith(f"converted_{download_id}"):
+                filepath = os.path.join(DOWNLOAD_FOLDER, filename)
+                return send_file(filepath, as_attachment=True, download_name=filename)
+        
+        return jsonify({'error': 'Archivo no encontrado'}), 404
+    except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
@@ -670,4 +1044,9 @@ if __name__ == '__main__':
         print("⚠ No se encontraron cookies. Para evitar bloqueos de YouTube:")
         print("  Lee las instrucciones en COOKIES_SETUP.md")
     
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    print("\n✓ Servidor iniciado en http://localhost:5000")
+    print("Presiona Ctrl+C para detener el servidor\n")
+    
+    # Modo debug activado con threaded=True para mejor manejo de múltiples peticiones
+    # use_reloader=True permite ver cambios en archivos sin reiniciar manualmente
+    app.run(debug=True, host='0.0.0.0', port=5000, threaded=True, use_reloader=True)
