@@ -37,6 +37,68 @@
                             </div>
                         </div>
                         
+                        <!-- Música de Fondo -->
+                        <div class="settings-section">
+                            <div class="settings-label">🎵 Ambiente</div>
+                            <div class="settings-option" onclick="toggleBackgroundMusic()">
+                                <span class="option-icon" id="musicIcon">🔇</span>
+                                <span class="option-text" id="musicText">Música Lofi</span>
+                                <span class="option-value" id="musicValue">OFF</span>
+                            </div>
+                            <div class="settings-option" onclick="toggleSoundEffects()">
+                                <span class="option-icon" id="soundIcon">🔔</span>
+                                <span class="option-text" id="soundText">Efectos de Sonido</span>
+                                <span class="option-value" id="soundValue">ON</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Modo Festivo -->
+                        <div class="settings-section">
+                            <div class="settings-label">🎉 Efectos Visuales</div>
+                            <div class="settings-option" onclick="togglePartyMode()">
+                                <span class="option-icon" id="partyIcon">🎈</span>
+                                <span class="option-text" id="partyText">Modo Fiesta</span>
+                                <span class="option-value" id="partyValue">OFF</span>
+                            </div>
+                            <div class="settings-option" onclick="toggleSnowEffect()">
+                                <span class="option-icon">❄️</span>
+                                <span class="option-text">Efecto Nieve</span>
+                                <span class="option-value" id="snowValue">OFF</span>
+                            </div>
+                            <div class="settings-option" onclick="toggleMatrixEffect()">
+                                <span class="option-icon">💻</span>
+                                <span class="option-text">Efecto Matrix</span>
+                                <span class="option-value" id="matrixValue">OFF</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Estadísticas -->
+                        <div class="settings-section">
+                            <div class="settings-label">📊 Tus Estadísticas</div>
+                            <div class="stats-grid">
+                                <div class="stat-item">
+                                    <div class="stat-icon">💾</div>
+                                    <div class="stat-value" id="totalDownloads">0</div>
+                                    <div class="stat-label">Descargas</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-icon">✂️</div>
+                                    <div class="stat-value" id="totalTrims">0</div>
+                                    <div class="stat-label">Recortes</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-icon">🔄</div>
+                                    <div class="stat-value" id="totalConversions">0</div>
+                                    <div class="stat-label">Conversiones</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-icon">⏱️</div>
+                                    <div class="stat-value" id="timeSpent">0min</div>
+                                    <div class="stat-label">Tiempo Aquí</div>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <!-- Language Selector -->
                         <div class="settings-section">
                             <div class="settings-label" data-i18n="language_label">Idioma</div>
@@ -759,6 +821,22 @@
             </div>
         </div>
     </div>
+
+    <!-- Canvas para efectos especiales -->
+    <canvas id="effectsCanvas" class="effects-canvas"></canvas>
+    
+    <!-- Contenedor de confetti -->
+    <div id="confettiContainer" class="confetti-container"></div>
+    
+    <!-- Mensajes motivacionales flotantes -->
+    <div id="motivationalMessages" class="motivational-messages"></div>
+    
+    <!-- Audio elements (ocultos) -->
+    <audio id="bgMusic" loop>
+        <source src="https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="clickSound" src="https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3"></audio>
+    <audio id="successSound" src="https://assets.mixkit.co/active_storage/sfx/2018/2018-preview.mp3"></audio>
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>
     <script src="{{ url_for('static', filename='translations.js') }}"></script>

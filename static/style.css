@@ -3093,3 +3093,322 @@ body.light-mode footer {
 body.light-mode .info-header {
     background: linear-gradient(135deg, rgba(248, 250, 252, 0.9), rgba(241, 245, 249, 0.7));
 }
+
+/* ========== CARACTERÍSTICAS CREATIVAS ========== */
+
+/* Estadísticas en el panel de configuración */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.stat-item {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.1));
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    border-radius: 12px;
+    padding: 15px;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.stat-item:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
+    border-color: var(--primary-color);
+}
+
+.stat-icon {
+    font-size: 2rem;
+    margin-bottom: 8px;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--primary-color);
+    margin-bottom: 5px;
+    font-family: 'Poppins', sans-serif;
+}
+
+.stat-label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+/* Canvas para efectos especiales */
+.effects-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 9998;
+    display: none;
+}
+
+.effects-canvas.active {
+    display: block;
+}
+
+/* Contenedor de confetti */
+.confetti-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 9997;
+}
+
+.confetti-piece {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: var(--primary-color);
+    animation: confettiFall 3s linear forwards;
+}
+
+@keyframes confettiFall {
+    0% {
+        transform: translateY(0) rotate(0deg);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(100vh) rotate(720deg);
+        opacity: 0;
+    }
+}
+
+/* Mensajes motivacionales */
+.motivational-messages {
+    position: fixed;
+    top: 120px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9996;
+    pointer-events: none;
+}
+
+.motivational-message {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.95), rgba(5, 150, 105, 0.95));
+    color: white;
+    padding: 15px 30px;
+    border-radius: 50px;
+    font-weight: 700;
+    font-size: 1.1rem;
+    box-shadow: 0 10px 40px rgba(16, 185, 129, 0.5);
+    animation: motivationalSlide 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    margin-bottom: 10px;
+    backdrop-filter: blur(10px);
+}
+
+@keyframes motivationalSlide {
+    0% {
+        transform: translateY(-100px) scale(0.8);
+        opacity: 0;
+    }
+    100% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+}
+
+/* Efecto de nieve */
+.snowflake {
+    position: fixed;
+    top: -10px;
+    color: white;
+    font-size: 1.5rem;
+    user-select: none;
+    pointer-events: none;
+    z-index: 9995;
+    animation: snowfall linear forwards;
+    text-shadow: 0 0 5px rgba(255, 255, 255, 0.8);
+}
+
+@keyframes snowfall {
+    0% {
+        transform: translateY(0) rotate(0deg);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(100vh) rotate(360deg);
+        opacity: 0.3;
+    }
+}
+
+/* Modo fiesta - Colores arcoíris */
+body.party-mode {
+    animation: partyColors 3s linear infinite !important;
+}
+
+@keyframes partyColors {
+    0% { filter: hue-rotate(0deg); }
+    100% { filter: hue-rotate(360deg); }
+}
+
+body.party-mode .floating-settings-btn {
+    animation: partyBounce 0.5s ease-in-out infinite !important;
+}
+
+@keyframes partyBounce {
+    0%, 100% { transform: scale(1) rotate(0deg); }
+    50% { transform: scale(1.2) rotate(180deg); }
+}
+
+/* Efecto Matrix */
+.matrix-rain {
+    position: fixed;
+    top: 0;
+    color: #0f0;
+    font-size: 1rem;
+    font-family: 'Courier New', monospace;
+    user-select: none;
+    pointer-events: none;
+    z-index: 9994;
+    animation: matrixFall linear forwards;
+    text-shadow: 0 0 5px #0f0;
+}
+
+@keyframes matrixFall {
+    0% {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+    10% {
+        opacity: 1;
+    }
+    90% {
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(100vh);
+        opacity: 0;
+    }
+}
+
+/* Pulso de botones al interactuar */
+.pulse-effect {
+    animation: pulseGlow 0.5s ease-in-out;
+}
+
+@keyframes pulseGlow {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7);
+    }
+    50% {
+        box-shadow: 0 0 0 20px rgba(99, 102, 241, 0);
+    }
+}
+
+/* Shake effect para errores */
+.shake-effect {
+    animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+    20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+/* Efecto de typing para mensajes */
+.typing-effect {
+    overflow: hidden;
+    border-right: 2px solid var(--primary-color);
+    white-space: nowrap;
+    animation: typing 2s steps(40) forwards, blink 0.75s step-end infinite;
+}
+
+@keyframes typing {
+    from { width: 0; }
+    to { width: 100%; }
+}
+
+@keyframes blink {
+    50% { border-color: transparent; }
+}
+
+/* Easter egg: Logo secreto */
+.secret-logo {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    font-size: 3rem;
+    opacity: 0;
+    transform: rotate(0deg);
+    transition: all 0.5s ease;
+    z-index: 10001;
+    cursor: pointer;
+    animation: secretPulse 2s ease-in-out infinite;
+}
+
+.secret-logo.visible {
+    opacity: 1;
+}
+
+@keyframes secretPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+/* Indicador de logros desbloqueados */
+.achievement-popup {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.95), rgba(245, 158, 11, 0.95));
+    color: white;
+    padding: 20px 25px;
+    border-radius: 16px;
+    box-shadow: 0 10px 40px rgba(251, 191, 36, 0.5);
+    z-index: 10000;
+    animation: achievementSlide 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    max-width: 350px;
+}
+
+@keyframes achievementSlide {
+    0% {
+        transform: translateX(500px);
+        opacity: 0;
+    }
+    100% {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.achievement-icon {
+    font-size: 2.5rem;
+    animation: achievementRotate 1s ease-in-out;
+}
+
+@keyframes achievementRotate {
+    0% { transform: rotate(0deg) scale(0); }
+    50% { transform: rotate(180deg) scale(1.3); }
+    100% { transform: rotate(360deg) scale(1); }
+}
+
+.achievement-text {
+    flex: 1;
+}
+
+.achievement-title {
+    font-weight: 800;
+    font-size: 1.1rem;
+    margin-bottom: 3px;
+}
+
+.achievement-desc {
+    font-size: 0.9rem;
+    opacity: 0.9;
+}

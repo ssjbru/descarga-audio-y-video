@@ -2189,3 +2189,337 @@ document.addEventListener('keydown', (e) => {
     });
 })();
 
+// ========== CARACTERÍSTICAS CREATIVAS ==========
+
+// Variables de estado
+let bgMusicEnabled = false;
+let soundEffectsEnabled = true;
+let partyModeEnabled = false;
+let snowEffectEnabled = false;
+let matrixEffectEnabled = false;
+let startTime = Date.now();
+let stats = {
+    downloads: 0,
+    trims: 0,
+    conversions: 0
+};
+
+// Cargar estadísticas guardadas
+function loadStats() {
+    const saved = localStorage.getItem('userStats');
+    if (saved) {
+        stats = JSON.parse(saved);
+        updateStatsDisplay();
+    }
+}
+
+// Guardar estadísticas
+function saveStats() {
+    localStorage.setItem('userStats', JSON.stringify(stats));
+    updateStatsDisplay();
+}
+
+// Actualizar visualización de estadísticas
+function updateStatsDisplay() {
+    document.getElementById('totalDownloads').textContent = stats.downloads;
+    document.getElementById('totalTrims').textContent = stats.trims;
+    document.getElementById('totalConversions').textContent = stats.conversions;
+    
+    // Calcular tiempo transcurrido
+    const elapsed = Math.floor((Date.now() - startTime) / 60000);
+    document.getElementById('timeSpent').textContent = elapsed + 'min';
+}
+
+// Incrementar estadísticas
+function incrementStat(type) {
+    stats[type]++;
+    saveStats();
+    checkAchievements();
+}
+
+// Sistema de logros
+const achievements = [
+    { id: 'first_download', title: '¡Primera Descarga!', desc: 'Has descargado tu primer archivo', check: () => stats.downloads >= 1 },
+    { id: 'power_user', title: 'Usuario Avanzado', desc: 'Has usado todas las funciones', check: () => stats.downloads >= 5 && stats.trims >= 3 && stats.conversions >= 2 },
+    { id: 'speed_demon', title: 'Rayo McQueen', desc: 'Completaste una acción en menos de 30s', check: () => true },
+    { id: 'explorer', title: 'Explorador', desc: 'Has probado todos los efectos visuales', check: () => true }
+];
+
+function checkAchievements() {
+    const unlocked = JSON.parse(localStorage.getItem('unlockedAchievements') || '[]');
+    
+    achievements.forEach(achievement => {
+        if (!unlocked.includes(achievement.id) && achievement.check()) {
+            unlocked.push(achievement.id);
+            localStorage.setItem('unlockedAchievements', JSON.stringify(unlocked));
+            showAchievement(achievement);
+        }
+    });
+}
+
+function showAchievement(achievement) {
+    const popup = document.createElement('div');
+    popup.className = 'achievement-popup';
+    popup.innerHTML = `
+        <div class="achievement-icon">🏆</div>
+        <div class="achievement-text">
+            <div class="achievement-title">${achievement.title}</div>
+            <div class="achievement-desc">${achievement.desc}</div>
+        </div>
+    `;
+    document.body.appendChild(popup);
+    
+    playSound('success');
+    createConfetti(50);
+    
+    setTimeout(() => {
+        popup.style.animation = 'achievementSlide 0.5s reverse';
+        setTimeout(() => popup.remove(), 500);
+    }, 4000);
+}
+
+// Música de fondo
+function toggleBackgroundMusic() {
+    bgMusicEnabled = !bgMusicEnabled;
+    const audio = document.getElementById('bgMusic');
+    const icon = document.getElementById('musicIcon');
+    const value = document.getElementById('musicValue');
+    
+    if (bgMusicEnabled) {
+        audio.volume = 0.3;
+        audio.play().catch(() => {});
+        icon.textContent = '🔊';
+        value.textContent = 'ON';
+    } else {
+        audio.pause();
+        icon.textContent = '🔇';
+        value.textContent = 'OFF';
+    }
+}
+
+// Efectos de sonido
+function toggleSoundEffects() {
+    soundEffectsEnabled = !soundEffectsEnabled;
+    const icon = document.getElementById('soundIcon');
+    const value = document.getElementById('soundValue');
+    
+    icon.textContent = soundEffectsEnabled ? '🔔' : '🔕';
+    value.textContent = soundEffectsEnabled ? 'ON' : 'OFF';
+}
+
+function playSound(type) {
+    if (!soundEffectsEnabled) return;
+    
+    const sounds = {
+        'click': document.getElementById('clickSound'),
+        'success': document.getElementById('successSound')
+    };
+    
+    if (sounds[type]) {
+        sounds[type].currentTime = 0;
+        sounds[type].volume = 0.5;
+        sounds[type].play().catch(() => {});
+    }
+}
+
+// Modo fiesta
+function togglePartyMode() {
+    partyModeEnabled = !partyModeEnabled;
+    const icon = document.getElementById('partyIcon');
+    const value = document.getElementById('partyValue');
+    
+    if (partyModeEnabled) {
+        document.body.classList.add('party-mode');
+        icon.textContent = '🎉';
+        value.textContent = 'ON';
+        createConfetti(100);
+        showMotivationalMessage('¡MODO FIESTA ACTIVADO! 🎉');
+    } else {
+        document.body.classList.remove('party-mode');
+        icon.textContent = '🎈';
+        value.textContent = 'OFF';
+    }
+}
+
+// Efecto nieve
+function toggleSnowEffect() {
+    snowEffectEnabled = !snowEffectEnabled;
+    const value = document.getElementById('snowValue');
+    value.textContent = snowEffectEnabled ? 'ON' : 'OFF';
+    
+    if (snowEffectEnabled) {
+        startSnowfall();
+    }
+}
+
+function startSnowfall() {
+    if (!snowEffectEnabled) return;
+    
+    const snowflake = document.createElement('div');
+    snowflake.className = 'snowflake';
+    snowflake.textContent = '❄';
+    snowflake.style.left = Math.random() * 100 + '%';
+    snowflake.style.animationDuration = (Math.random() * 3 + 2) + 's';
+    snowflake.style.fontSize = (Math.random() * 1 + 0.5) + 'rem';
+    
+    document.body.appendChild(snowflake);
+    
+    setTimeout(() => snowflake.remove(), 5000);
+    
+    if (snowEffectEnabled) {
+        setTimeout(startSnowfall, 200);
+    }
+}
+
+// Efecto Matrix
+function toggleMatrixEffect() {
+    matrixEffectEnabled = !matrixEffectEnabled;
+    const value = document.getElementById('matrixValue');
+    value.textContent = matrixEffectEnabled ? 'ON' : 'OFF';
+    
+    if (matrixEffectEnabled) {
+        startMatrixRain();
+    }
+}
+
+function startMatrixRain() {
+    if (!matrixEffectEnabled) return;
+    
+    const chars = '01アイウエオカキクケコサシスセソタチツテト';
+    const rain = document.createElement('div');
+    rain.className = 'matrix-rain';
+    rain.textContent = chars[Math.floor(Math.random() * chars.length)];
+    rain.style.left = Math.random() * 100 + '%';
+    rain.style.animationDuration = (Math.random() * 2 + 1) + 's';
+    
+    document.body.appendChild(rain);
+    
+    setTimeout(() => rain.remove(), 3000);
+    
+    if (matrixEffectEnabled) {
+        setTimeout(startMatrixRain, 100);
+    }
+}
+
+// Crear confetti
+function createConfetti(count) {
+    const colors = ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#3b82f6'];
+    const container = document.getElementById('confettiContainer');
+    
+    for (let i = 0; i < count; i++) {
+        setTimeout(() => {
+            const confetti = document.createElement('div');
+            confetti.className = 'confetti-piece';
+            confetti.style.left = Math.random() * 100 + '%';
+            confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+            confetti.style.animationDelay = Math.random() * 0.5 + 's';
+            confetti.style.width = (Math.random() * 10 + 5) + 'px';
+            confetti.style.height = (Math.random() * 10 + 5) + 'px';
+            
+            container.appendChild(confetti);
+            
+            setTimeout(() => confetti.remove(), 3000);
+        }, i * 30);
+    }
+}
+
+// Mensajes motivacionales
+const motivationalMessages = [
+    '¡Excelente elección! 🌟',
+    '¡Eres increíble! 🚀',
+    '¡Sigue así! 💪',
+    '¡Fantástico! ✨',
+    '¡Genial! 🎯',
+    '¡Wow, qué pro! 🔥',
+    '¡Impresionante! 🌈',
+    '¡Eres el mejor! 👑'
+];
+
+function showMotivationalMessage(customMessage) {
+    const message = customMessage || motivationalMessages[Math.floor(Math.random() * motivationalMessages.length)];
+    const container = document.getElementById('motivationalMessages');
+    
+    const msgDiv = document.createElement('div');
+    msgDiv.className = 'motivational-message';
+    msgDiv.textContent = message;
+    
+    container.appendChild(msgDiv);
+    
+    setTimeout(() => {
+        msgDiv.style.animation = 'motivationalSlide 0.6s reverse';
+        setTimeout(() => msgDiv.remove(), 600);
+    }, 2500);
+}
+
+// Agregar efectos de sonido a botones
+document.addEventListener('DOMContentLoaded', function() {
+    // Cargar estadísticas
+    loadStats();
+    
+    // Actualizar tiempo cada minuto
+    setInterval(updateStatsDisplay, 60000);
+    
+    // Agregar sonidos a todos los botones
+    document.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', () => {
+            playSound('click');
+            btn.classList.add('pulse-effect');
+            setTimeout(() => btn.classList.remove('pulse-effect'), 500);
+            
+            // Mensaje motivacional aleatorio (10% de probabilidad)
+            if (Math.random() < 0.1) {
+                showMotivationalMessage();
+            }
+        });
+    });
+    
+    // Interceptar descargas para incrementar estadísticas
+    const originalFetch = window.fetch;
+    window.fetch = function(...args) {
+        return originalFetch.apply(this, args).then(response => {
+            if (response.ok && args[0].includes('/download')) {
+                incrementStat('downloads');
+                showMotivationalMessage('¡Descarga iniciada! 🎉');
+                createConfetti(30);
+            }
+            return response;
+        });
+    };
+    
+    // Easter egg: Konami code mejorado
+    let konamiProgress = 0;
+    const konamiSequence = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
+    
+    document.addEventListener('keydown', (e) => {
+        if (e.key === konamiSequence[konamiProgress]) {
+            konamiProgress++;
+            if (konamiProgress === konamiSequence.length) {
+                activateSecretMode();
+                konamiProgress = 0;
+            }
+        } else {
+            konamiProgress = 0;
+        }
+    });
+});
+
+// Modo secreto
+function activateSecretMode() {
+    showAchievement({
+        title: '¡Código Konami!',
+        desc: 'Desbloqueaste el modo secreto'
+    });
+    
+    // Activar todos los efectos
+    if (!partyModeEnabled) togglePartyMode();
+    if (!snowEffectEnabled) toggleSnowEffect();
+    
+    createConfetti(200);
+    
+    // Mensaje épico
+    showMotivationalMessage('¡MODO ULTRA ÉPICO ACTIVADO! 🎮🔥');
+    
+    setTimeout(() => {
+        showMotivationalMessage('¡Eres una leyenda! 🏆');
+    }, 2000);
+}
