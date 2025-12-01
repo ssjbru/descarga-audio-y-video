@@ -48,6 +48,11 @@ cleanup_thread.start()
 def index():
     return render_template('index.html')
 
+@app.route('/ads.txt')
+def ads_txt():
+    """Sirve el archivo ads.txt para Google AdSense"""
+    return send_file('static/ads.txt', mimetype='text/plain')
+
 @app.route('/supported_sites')
 def supported_sites():
     """Obtiene la lista completa de sitios soportados por yt-dlp"""
