@@ -40,3 +40,7 @@ Thumbs.db
 *.swp
 *.swo
 *~
+
+youtube_cookies.txt
+youtube.com_cookies.txt
+*.cookies.txt
