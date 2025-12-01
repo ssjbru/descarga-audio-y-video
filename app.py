@@ -7,6 +7,8 @@ import uuid
 import threading
 import time
 import subprocess
+import shutil
+import tempfile
 
 app = Flask(__name__)
 
@@ -23,6 +25,8 @@ DOWNLOAD_FOLDER = DEFAULT_DOWNLOAD_FOLDER
 
 # Buscar cookies en múltiples ubicaciones
 COOKIES_FILE = None
+COOKIES_FILE_WRITABLE = None  # Copia escribible para yt-dlp
+
 possible_cookie_paths = [
     '/etc/secrets/youtube_cookies.txt',  # Render Secret Files
     os.path.join(os.getcwd(), 'youtube_cookies.txt'),  # Carpeta actual
@@ -32,6 +36,26 @@ for path in possible_cookie_paths:
     if os.path.exists(path) and os.path.getsize(path) > 0:
         COOKIES_FILE = path
         print(f"✓ Archivo de cookies encontrado en: {path}")
+        
+        # Si el archivo es de solo lectura (como en Render), copiarlo a temp
+        try:
+            # Intentar abrir en modo append para verificar si es escribible
+            with open(path, 'a'):
+                pass
+            # Si funciona, usar directamente
+            COOKIES_FILE_WRITABLE = path
+            print(f"  → Cookies usables directamente (escribible)")
+        except (IOError, OSError):
+            # Si falla, copiar a archivo temporal escribible
+            try:
+                temp_dir = tempfile.gettempdir()
+                temp_cookies = os.path.join(temp_dir, 'youtube_cookies_temp.txt')
+                shutil.copy2(path, temp_cookies)
+                COOKIES_FILE_WRITABLE = temp_cookies
+                print(f"  → Cookies copiadas a ubicación escribible: {temp_cookies}")
+            except Exception as e:
+                print(f"  ⚠ No se pudo copiar cookies: {e}")
+                COOKIES_FILE_WRITABLE = None
         break
 
 if not COOKIES_FILE:
@@ -138,9 +162,9 @@ def get_formats():
             }
             
             # Intentar usar cookies del navegador automáticamente
-            if COOKIES_FILE and os.path.exists(COOKIES_FILE) and os.path.getsize(COOKIES_FILE) > 0:
-                ydl_opts['cookiefile'] = COOKIES_FILE
-                print(f"✓ Cookies de YouTube cargadas desde archivo: {COOKIES_FILE}")
+            if COOKIES_FILE_WRITABLE and os.path.exists(COOKIES_FILE_WRITABLE) and os.path.getsize(COOKIES_FILE_WRITABLE) > 0:
+                ydl_opts['cookiefile'] = COOKIES_FILE_WRITABLE
+                print(f"✓ Cookies de YouTube cargadas desde archivo: {COOKIES_FILE_WRITABLE}")
             # En servidor (Render), no intentar extraer cookies del navegador
             # Solo funciona en local donde el usuario tiene navegadores instalados
             elif not os.path.exists('/opt/render'):  # No estamos en Render
@@ -429,8 +453,8 @@ def download():
             }
             
             # Intentar usar cookies del archivo primero
-            if COOKIES_FILE and os.path.exists(COOKIES_FILE) and os.path.getsize(COOKIES_FILE) > 0:
-                ydl_opts['cookiefile'] = COOKIES_FILE
+            if COOKIES_FILE_WRITABLE and os.path.exists(COOKIES_FILE_WRITABLE) and os.path.getsize(COOKIES_FILE_WRITABLE) > 0:
+                ydl_opts['cookiefile'] = COOKIES_FILE_WRITABLE
                 print("✓ [Descarga] Cookies de YouTube cargadas desde archivo")
             # Solo intentar cookies del navegador en local, no en servidor
             elif not os.path.exists('/opt/render'):
