@@ -15,14 +15,19 @@
     <div class="cursor-dot"></div>
     <div class="cursor-outline"></div>
     
-    <div class="container">
-        <header>
-            <div class="header-top">
-                <div class="settings-container">
-                    <button class="settings-btn" onclick="toggleSettingsMenu()" title="Settings">
-                        ⚙️
-                    </button>
-                    <div class="settings-menu hidden" id="settingsMenu">
+    <!-- Botón flotante de configuración -->
+    <button class="floating-settings-btn" onclick="toggleSettingsMenu()" title="Configuración">
+        ⚙️
+    </button>
+    
+    <!-- Overlay de configuración -->
+    <div class="settings-overlay hidden" id="settingsOverlay" onclick="closeSettingsIfClickOutside(event)">
+        <div class="settings-panel" onclick="event.stopPropagation()">
+            <div class="settings-header">
+                <h2>⚙️ Configuración</h2>
+                <button class="settings-close" onclick="toggleSettingsMenu()">✕</button>
+            </div>
+            <div class="settings-content">
                         <!-- Theme Toggle -->
                         <div class="settings-section">
                             <div class="settings-option" onclick="toggleTheme()">
@@ -351,6 +356,11 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <header>
             <h1 class="main-title" data-i18n="main_title">✨ Trimvert</h1>
             <p class="subtitle" data-i18n="subtitle">🎬 Download, trim and convert media from 1000+ platforms in the best quality</p>
         </header>

@@ -1680,9 +1680,23 @@ function applyTranslations(lang) {
 
 // Toggle menú de configuración
 function toggleSettingsMenu() {
-    const menu = document.getElementById('settingsMenu');
-    if (menu) {
-        menu.classList.toggle('hidden');
+    const overlay = document.getElementById('settingsOverlay');
+    if (overlay) {
+        overlay.classList.toggle('hidden');
+        
+        // Prevenir scroll del body cuando el menú está abierto
+        if (!overlay.classList.contains('hidden')) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+    }
+}
+
+// Cerrar configuración si se hace clic fuera del panel
+function closeSettingsIfClickOutside(event) {
+    if (event.target.id === 'settingsOverlay') {
+        toggleSettingsMenu();
     }
 }
 
@@ -1721,16 +1735,6 @@ function loadSavedTheme() {
         document.getElementById('themeText').textContent = translation.light_mode || 'Modo Claro';
     }
 }
-
-// Cerrar menú al hacer clic fuera
-document.addEventListener('click', function(event) {
-    const menu = document.getElementById('settingsMenu');
-    const settingsBtn = document.querySelector('.settings-btn');
-    
-    if (menu && !menu.contains(event.target) && event.target !== settingsBtn) {
-        menu.classList.add('hidden');
-    }
-});
 
 // Inicializar idioma y tema al cargar la página
 document.addEventListener('DOMContentLoaded', function() {
@@ -2084,8 +2088,10 @@ document.addEventListener('keydown', (e) => {
         if (document.body.classList.contains('theater-mode')) {
             toggleTheaterMode();
         }
-        const settingsMenu = document.getElementById('settingsMenu');
-        if (settingsMenu) settingsMenu.classList.add('hidden');
+        const settingsOverlay = document.getElementById('settingsOverlay');
+        if (settingsOverlay && !settingsOverlay.classList.contains('hidden')) {
+            toggleSettingsMenu();
+        }
         
         // Salir de pantalla completa
         if (document.fullscreenElement) {
