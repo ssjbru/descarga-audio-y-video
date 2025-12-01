@@ -199,6 +199,57 @@ body::before {
     transition: opacity 0.5s ease;
 }
 
+/* Contenedores de anuncios */
+.ad-container {
+    width: 100%;
+    min-height: 90px;
+    margin: 25px 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(99, 102, 241, 0.1);
+    border-radius: 12px;
+    padding: 15px;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+}
+
+.ad-container:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(99, 102, 241, 0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.1);
+}
+
+.ad-top {
+    margin-top: 20px;
+    margin-bottom: 30px;
+}
+
+.ad-inline {
+    margin: 20px 0;
+}
+
+.ad-container ins {
+    width: 100%;
+    max-width: 100%;
+}
+
+/* Anuncios responsive */
+@media (max-width: 768px) {
+    .ad-container {
+        min-height: 70px;
+        margin: 15px 0;
+        padding: 10px;
+    }
+    
+    .ad-top {
+        margin-top: 15px;
+        margin-bottom: 20px;
+    }
+}
+
 /* Light Mode Particles */
 body.light-mode::before {
     background: 
