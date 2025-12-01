@@ -20,7 +20,23 @@ app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # No cachear en desarrollo
 # El usuario puede cambiarla desde la interfaz
 DEFAULT_DOWNLOAD_FOLDER = os.path.join('C:\\', 'Temp', 'descargardepags')
 DOWNLOAD_FOLDER = DEFAULT_DOWNLOAD_FOLDER
-COOKIES_FILE = os.path.join(os.getcwd(), 'youtube_cookies.txt')
+
+# Buscar cookies en múltiples ubicaciones
+COOKIES_FILE = None
+possible_cookie_paths = [
+    '/etc/secrets/youtube_cookies.txt',  # Render Secret Files
+    os.path.join(os.getcwd(), 'youtube_cookies.txt'),  # Carpeta actual
+    'youtube_cookies.txt'  # Relativo
+]
+for path in possible_cookie_paths:
+    if os.path.exists(path) and os.path.getsize(path) > 0:
+        COOKIES_FILE = path
+        print(f"✓ Archivo de cookies encontrado en: {path}")
+        break
+
+if not COOKIES_FILE:
+    print("⚠ No se encontraron cookies. Para evitar bloqueos de YouTube: Lee las instrucciones en COOKIES_SETUP.md")
+
 os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 
 # Diccionario para almacenar el progreso de las descargas
@@ -122,7 +138,7 @@ def get_formats():
             }
             
             # Intentar usar cookies del navegador automáticamente
-            if os.path.exists(COOKIES_FILE) and os.path.getsize(COOKIES_FILE) > 0:
+            if COOKIES_FILE and os.path.exists(COOKIES_FILE) and os.path.getsize(COOKIES_FILE) > 0:
                 ydl_opts['cookiefile'] = COOKIES_FILE
                 print(f"✓ Cookies de YouTube cargadas desde archivo: {COOKIES_FILE}")
             # En servidor (Render), no intentar extraer cookies del navegador
@@ -413,7 +429,7 @@ def download():
             }
             
             # Intentar usar cookies del archivo primero
-            if os.path.exists(COOKIES_FILE) and os.path.getsize(COOKIES_FILE) > 0:
+            if COOKIES_FILE and os.path.exists(COOKIES_FILE) and os.path.getsize(COOKIES_FILE) > 0:
                 ydl_opts['cookiefile'] = COOKIES_FILE
                 print("✓ [Descarga] Cookies de YouTube cargadas desde archivo")
             # Solo intentar cookies del navegador en local, no en servidor
