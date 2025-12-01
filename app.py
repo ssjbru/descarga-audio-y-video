@@ -154,10 +154,10 @@ def get_formats():
         # Optimizaciones específicas por plataforma
         if is_youtube:
             # Para YouTube, intentar múltiples métodos de autenticación
+            # android y mweb no requieren PO Token (nuevo requisito de YouTube)
             ydl_opts['extractor_args'] = {
                 'youtube': {
-                    'player_client': ['android_creator', 'web'],
-                    'skip': ['hls', 'dash']
+                    'player_client': ['android', 'mweb', 'web'],
                 }
             }
             
@@ -445,10 +445,10 @@ def download():
         is_youtube = 'youtube.com' in url or 'youtu.be' in url
         
         if is_youtube:
+            # android y mweb no requieren PO Token (nuevo requisito de YouTube)
             ydl_opts['extractor_args'] = {
                 'youtube': {
-                    'player_client': ['android_creator', 'web'],
-                    'skip': ['hls', 'dash']
+                    'player_client': ['android', 'mweb', 'web'],
                 }
             }
             
@@ -492,16 +492,19 @@ def download():
                     # Extraer la altura del formato
                     try:
                         height = format_id.split('height<=')[1].split(']')[0]
-                        # Usar cadena de fallback robusta: intenta el mejor con esa altura, 
-                        # si falla intenta combinar video+audio de esa altura,
-                        # si falla usa el mejor formato disponible
-                        ydl_opts['format'] = f'bestvideo[height<={height}]+bestaudio/best[height<={height}]/bestvideo+bestaudio/best'
+                        # Usar cadena de fallback robusta con múltiples estrategias:
+                        # 1. Mejor video de esa altura + mejor audio
+                        # 2. Mejor formato combinado de esa altura
+                        # 3. Cualquier formato con esa altura
+                        # 4. Mejor video + audio sin restricción
+                        # 5. Mejor formato disponible
+                        ydl_opts['format'] = f'bestvideo[height<={height}]+bestaudio/best[height<={height}]/[height<={height}]/bestvideo+bestaudio/best'
                     except:
                         # Si falla el parseo, usar formato seguro
                         ydl_opts['format'] = 'bestvideo+bestaudio/best'
                 else:
                     # Para otros formatos específicos
-                    ydl_opts['format'] = f'{format_id}+bestaudio/best'
+                    ydl_opts['format'] = f'{format_id}+bestaudio/{format_id}/best'
             else:
                 ydl_opts['format'] = 'bestvideo+bestaudio/best'
             
