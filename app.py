@@ -51,7 +51,7 @@ def index():
 @app.route('/ads.txt')
 def ads_txt():
     """Sirve el archivo ads.txt para Google AdSense"""
-    return send_file('static/ads.txt', mimetype='text/plain')
+    return send_file('ads.txt', mimetype='text/plain')
 
 @app.route('/supported_sites')
 def supported_sites():
