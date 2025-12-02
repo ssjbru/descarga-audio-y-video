@@ -250,23 +250,21 @@ def get_formats():
             duration = info.get('duration', 0)
             thumbnail = info.get('thumbnail', '')
             
-            # Para YouTube, usar opciones simples y seguras
+            # Para YouTube, ofrecer solo mejor calidad disponible
             if is_youtube:
                 real_formats = info.get('formats', [])
                 print(f"[INFO] YouTube - Total formatos disponibles: {len(real_formats)}")
                 
-                # Ofrecer calidades estándar usando selectores seguros
+                # Solo ofrecer "Mejor Calidad Disponible" - yt-dlp elige automáticamente
                 formats = [
-                    {'format_id': 'best', 'ext': 'mp4', 'quality': 'Mejor Calidad', 'height': 1080, 'resolution': '1920x1080', 'fps': 30, 'vcodec': 'h264', 'acodec': 'aac', 'filesize': 0, 'filesize_mb': 'Variable', 'has_audio': True},
-                    {'format_id': '22', 'ext': 'mp4', 'quality': '720p HD', 'height': 720, 'resolution': '1280x720', 'fps': 30, 'vcodec': 'h264', 'acodec': 'aac', 'filesize': 0, 'filesize_mb': 'Variable', 'has_audio': True},
-                    {'format_id': '18', 'ext': 'mp4', 'quality': '360p', 'height': 360, 'resolution': '640x360', 'fps': 30, 'vcodec': 'h264', 'acodec': 'aac', 'filesize': 0, 'filesize_mb': 'Variable', 'has_audio': True},
+                    {'format_id': 'best', 'ext': 'mp4', 'quality': 'Mejor Calidad Disponible', 'height': 0, 'resolution': 'Auto', 'fps': 0, 'vcodec': 'auto', 'acodec': 'auto', 'filesize': 0, 'filesize_mb': 'Variable', 'has_audio': True},
                 ]
                 
                 audio_formats = [
-                    {'format_id': 'bestaudio', 'ext': 'm4a', 'abr': 128, 'abr_text': 'Mejor Calidad', 'acodec': 'aac/opus', 'filesize': 0, 'filesize_mb': 'Variable'},
+                    {'format_id': 'bestaudio', 'ext': 'm4a', 'abr': 0, 'abr_text': 'Mejor Calidad', 'acodec': 'auto', 'filesize': 0, 'filesize_mb': 'Variable'},
                 ]
                 
-                print(f"[INFO] YouTube - Usando formatos estándar seguros")
+                print(f"[INFO] YouTube - Descargará la mejor calidad disponible automáticamente")
             
             elif is_soundcloud:
                 # SoundCloud es solo audio
