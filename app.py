@@ -28,8 +28,11 @@ COOKIES_FILE = None
 COOKIES_FILE_WRITABLE = None  # Copia escribible para yt-dlp
 
 possible_cookie_paths = [
-    '/etc/secrets/youtube_cookies.txt',  # Render Secret Files
+    '/etc/secrets/www.youtube.com_cookies',  # Render Secret Files (nuevo)
+    '/etc/secrets/youtube_cookies.txt',  # Render Secret Files (anterior)
+    os.path.join(os.getcwd(), 'www.youtube.com_cookies'),  # Carpeta actual (nuevo)
     os.path.join(os.getcwd(), 'youtube_cookies.txt'),  # Carpeta actual
+    'www.youtube.com_cookies',  # Relativo (nuevo)
     'youtube_cookies.txt'  # Relativo
 ]
 for path in possible_cookie_paths:
