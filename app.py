@@ -250,7 +250,7 @@ def get_formats():
                 real_formats = info.get('formats', [])
                 print(f"[INFO] YouTube - Total formatos disponibles: {len(real_formats)}")
                 
-                # Filtrar formatos de video con audio (formatos combinados)
+                # Primero: Buscar formatos combinados (video+audio en un solo archivo)
                 formats = []
                 seen_heights = set()
                 
@@ -282,10 +282,49 @@ def get_formats():
                             'has_audio': True
                         })
                 
+                # Si no hay formatos combinados, usar formatos separados con estrategia de combinación
+                if not formats:
+                    print(f"[INFO] No hay formatos combinados, usando formatos separados")
+                    video_formats = {}
+                    
+                    for f in real_formats:
+                        height = f.get('height')
+                        vcodec = f.get('vcodec', 'none')
+                        format_id = f.get('format_id', '')
+                        ext = f.get('ext', 'mp4')
+                        filesize = f.get('filesize') or f.get('filesize_approx', 0)
+                        
+                        # Formatos solo video
+                        if height and vcodec != 'none' and height not in video_formats:
+                            video_formats[height] = {
+                                'format_id': format_id,
+                                'ext': ext,
+                                'height': height,
+                                'filesize': filesize
+                            }
+                    
+                    # Crear opciones usando selección automática de yt-dlp
+                    for height in sorted(video_formats.keys()):
+                        vf = video_formats[height]
+                        width = int(height * 16/9)
+                        formats.append({
+                            'format_id': f'{height}p',  # Marcador simple que interpretaremos después
+                            'ext': 'mp4',
+                            'quality': f'{height}p',
+                            'height': height,
+                            'resolution': f'{width}x{height}',
+                            'fps': 30,
+                            'vcodec': 'h264/vp9',
+                            'acodec': 'aac/opus',
+                            'filesize': vf['filesize'],
+                            'filesize_mb': round(vf['filesize'] / (1024 * 1024), 2) if vf['filesize'] else 'N/A',
+                            'has_audio': True
+                        })
+                
                 # Ordenar por altura
                 formats.sort(key=lambda x: x['height'])
                 
-                print(f"[INFO] YouTube - Formatos de video combinados: {len(formats)}")
+                print(f"[INFO] YouTube - Formatos de video: {len(formats)}")
                 if formats:
                     print(f"[INFO] Resoluciones disponibles: {[f['quality'] for f in formats]}")
                 
@@ -572,11 +611,16 @@ def download():
         else:
             # Descargar video
             if format_id and format_id != 'best':
-                # Usar directamente el format_id proporcionado (ahora son IDs reales)
-                # Si el formato no tiene audio, intentar combinar con bestaudio
-                ydl_opts['format'] = f'{format_id}/best'
+                # Si el format_id es algo como "360p", convertir a selector
+                if format_id.endswith('p') and format_id[:-1].isdigit():
+                    height = format_id[:-1]
+                    # Estrategia robusta: mejor video de esa altura + mejor audio, o cualquier formato de esa altura
+                    ydl_opts['format'] = f'bv*[height<={height}]+ba/b[height<={height}]/bv*+ba/b'
+                else:
+                    # ID real de formato o selector ya construido
+                    ydl_opts['format'] = f'{format_id}/bv*+ba/b'
             else:
-                ydl_opts['format'] = 'bestvideo+bestaudio/best'
+                ydl_opts['format'] = 'bv*+ba/b'  # Mejor video + mejor audio / mejor combinado
             
             # Configurar formato de salida
             ydl_opts['merge_output_format'] = output_format if output_format else 'mp4'
