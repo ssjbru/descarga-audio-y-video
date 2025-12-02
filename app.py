@@ -181,22 +181,20 @@ def get_formats():
         
         # Optimizaciones específicas por plataforma
         if is_youtube:
-            # Configuración para evitar bloqueos de YouTube
-            # Usar solo clientes que no requieran cookies ni PO Token
+            # Usar cliente web con cookies para evitar bloqueos de bot
             ydl_opts['extractor_args'] = {
                 'youtube': {
-                    'player_client': ['ios', 'web_creator'],  # Clientes más permisivos
-                    'skip': ['hls', 'dash']  # Saltar formatos problemáticos
+                    'player_client': ['web'],  # Solo web client con cookies
                 }
             }
             
-            # NO usar cookies si causan HTTP 429
-            # Las cookies pueden estar bloqueadas o expiradas
-            # if COOKIES_FILE_WRITABLE and os.path.exists(COOKIES_FILE_WRITABLE) and os.path.getsize(COOKIES_FILE_WRITABLE) > 0:
-            #     ydl_opts['cookiefile'] = COOKIES_FILE_WRITABLE
-            #     print(f"✓ Cookies de YouTube cargadas desde archivo: {COOKIES_FILE_WRITABLE}")
+            # USAR cookies - son necesarias para evitar detección de bot
+            if COOKIES_FILE_WRITABLE and os.path.exists(COOKIES_FILE_WRITABLE) and os.path.getsize(COOKIES_FILE_WRITABLE) > 0:
+                ydl_opts['cookiefile'] = COOKIES_FILE_WRITABLE
+                print(f"✓ Cookies de YouTube cargadas desde archivo: {COOKIES_FILE_WRITABLE}")
+            else:
+                print("⚠ Sin cookies - YouTube bloqueará como bot")
             
-            print("⚠ Usando YouTube sin cookies (modo limitado)")
             # En servidor (Render), no intentar extraer cookies del navegador
             # Solo funciona en local donde el usuario tiene navegadores instalados
             if not os.path.exists('/opt/render'):  # No estamos en Render
@@ -513,6 +511,20 @@ def get_formats():
         error_msg = str(e)
         print(f"[ERROR GET_FORMATS] DownloadError: {error_msg}")
         
+        # Mensaje específico para detección de bot de YouTube
+        if 'Sign in to confirm' in error_msg or 'not a bot' in error_msg or 'HTTP 429' in error_msg:
+            return jsonify({
+                'error': '⚠️ YouTube está bloqueando las descargas desde el servidor.\n\n'
+                         '🔧 Esto sucede porque:\n'
+                         '• Las cookies expiraron o están bloqueadas\n'
+                         '• YouTube detectó demasiadas solicitudes\n\n'
+                         '✅ Soluciones:\n'
+                         '1. Espera 10-15 minutos e intenta de nuevo\n'
+                         '2. Prueba con otro video de YouTube\n'
+                         '3. Usa otras plataformas (TikTok, Instagram, etc.)\n\n'
+                         '💡 Las cookies necesitan actualizarse periódicamente en el servidor.'
+            }), 429
+        
         # Mensaje específico para Spotify y otros servicios DRM
         if 'DRM' in error_msg or 'spotify' in url.lower():
             return jsonify({
@@ -573,20 +585,20 @@ def download():
         is_youtube = 'youtube.com' in url or 'youtu.be' in url
         
         if is_youtube:
-            # Usar clientes que funcionen sin cookies
+            # Usar web client con cookies
             ydl_opts['extractor_args'] = {
                 'youtube': {
-                    'player_client': ['ios', 'web_creator'],
-                    'skip': ['hls', 'dash']
+                    'player_client': ['web'],
                 }
             }
             
-            # NO usar cookies si causan HTTP 429
-            # if COOKIES_FILE_WRITABLE and os.path.exists(COOKIES_FILE_WRITABLE) and os.path.getsize(COOKIES_FILE_WRITABLE) > 0:
-            #     ydl_opts['cookiefile'] = COOKIES_FILE_WRITABLE
-            #     print("✓ [Descarga] Cookies de YouTube cargadas desde archivo")
+            # Usar cookies - necesarias para evitar bloqueo de bot
+            if COOKIES_FILE_WRITABLE and os.path.exists(COOKIES_FILE_WRITABLE) and os.path.getsize(COOKIES_FILE_WRITABLE) > 0:
+                ydl_opts['cookiefile'] = COOKIES_FILE_WRITABLE
+                print("✓ [Descarga] Cookies de YouTube cargadas desde archivo")
+            else:
+                print("⚠ [Descarga] Sin cookies - puede fallar")
             
-            print("⚠ [Descarga] YouTube sin cookies")
             # Solo intentar cookies del navegador en local, no en servidor
             if not os.path.exists('/opt/render'):
                 try:
