@@ -181,21 +181,25 @@ def get_formats():
         
         # Optimizaciones específicas por plataforma
         if is_youtube:
-            # Para YouTube, intentar múltiples métodos de autenticación
-            # android y mweb no requieren PO Token (nuevo requisito de YouTube)
+            # Configuración para evitar bloqueos de YouTube
+            # Usar solo clientes que no requieran cookies ni PO Token
             ydl_opts['extractor_args'] = {
                 'youtube': {
-                    'player_client': ['android', 'mweb', 'web'],
+                    'player_client': ['ios', 'web_creator'],  # Clientes más permisivos
+                    'skip': ['hls', 'dash']  # Saltar formatos problemáticos
                 }
             }
             
-            # Intentar usar cookies del navegador automáticamente
-            if COOKIES_FILE_WRITABLE and os.path.exists(COOKIES_FILE_WRITABLE) and os.path.getsize(COOKIES_FILE_WRITABLE) > 0:
-                ydl_opts['cookiefile'] = COOKIES_FILE_WRITABLE
-                print(f"✓ Cookies de YouTube cargadas desde archivo: {COOKIES_FILE_WRITABLE}")
+            # NO usar cookies si causan HTTP 429
+            # Las cookies pueden estar bloqueadas o expiradas
+            # if COOKIES_FILE_WRITABLE and os.path.exists(COOKIES_FILE_WRITABLE) and os.path.getsize(COOKIES_FILE_WRITABLE) > 0:
+            #     ydl_opts['cookiefile'] = COOKIES_FILE_WRITABLE
+            #     print(f"✓ Cookies de YouTube cargadas desde archivo: {COOKIES_FILE_WRITABLE}")
+            
+            print("⚠ Usando YouTube sin cookies (modo limitado)")
             # En servidor (Render), no intentar extraer cookies del navegador
             # Solo funciona en local donde el usuario tiene navegadores instalados
-            elif not os.path.exists('/opt/render'):  # No estamos en Render
+            if not os.path.exists('/opt/render'):  # No estamos en Render
                 try:
                     ydl_opts['cookiesfrombrowser'] = ('chrome',)
                     print("✓ Usando cookies de Chrome automáticamente")
@@ -569,19 +573,22 @@ def download():
         is_youtube = 'youtube.com' in url or 'youtu.be' in url
         
         if is_youtube:
-            # android y mweb no requieren PO Token (nuevo requisito de YouTube)
+            # Usar clientes que funcionen sin cookies
             ydl_opts['extractor_args'] = {
                 'youtube': {
-                    'player_client': ['android', 'mweb', 'web'],
+                    'player_client': ['ios', 'web_creator'],
+                    'skip': ['hls', 'dash']
                 }
             }
             
-            # Intentar usar cookies del archivo primero
-            if COOKIES_FILE_WRITABLE and os.path.exists(COOKIES_FILE_WRITABLE) and os.path.getsize(COOKIES_FILE_WRITABLE) > 0:
-                ydl_opts['cookiefile'] = COOKIES_FILE_WRITABLE
-                print("✓ [Descarga] Cookies de YouTube cargadas desde archivo")
+            # NO usar cookies si causan HTTP 429
+            # if COOKIES_FILE_WRITABLE and os.path.exists(COOKIES_FILE_WRITABLE) and os.path.getsize(COOKIES_FILE_WRITABLE) > 0:
+            #     ydl_opts['cookiefile'] = COOKIES_FILE_WRITABLE
+            #     print("✓ [Descarga] Cookies de YouTube cargadas desde archivo")
+            
+            print("⚠ [Descarga] YouTube sin cookies")
             # Solo intentar cookies del navegador en local, no en servidor
-            elif not os.path.exists('/opt/render'):
+            if not os.path.exists('/opt/render'):
                 try:
                     ydl_opts['cookiesfrombrowser'] = ('chrome',)
                     print("✓ [Descarga] Usando cookies de Chrome automáticamente")
