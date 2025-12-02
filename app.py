@@ -245,38 +245,88 @@ def get_formats():
             duration = info.get('duration', 0)
             thumbnail = info.get('thumbnail', '')
             
-            # Para YouTube, usar calidades predefinidas en lugar de listar formatos específicos
+            # Para YouTube, extraer formatos reales disponibles
             if is_youtube:
-                # Obtener formatos reales para calcular tamaños aproximados
                 real_formats = info.get('formats', [])
-                size_map = {}
+                print(f"[INFO] YouTube - Total formatos disponibles: {len(real_formats)}")
                 
-                # Mapear tamaños reales de los formatos disponibles
+                # Filtrar formatos de video con audio (formatos combinados)
+                formats = []
+                seen_heights = set()
+                
                 for f in real_formats:
-                    height = f.get('height', 0)
+                    height = f.get('height')
+                    vcodec = f.get('vcodec', 'none')
+                    acodec = f.get('acodec', 'none')
+                    format_id = f.get('format_id', '')
+                    ext = f.get('ext', 'mp4')
                     filesize = f.get('filesize') or f.get('filesize_approx', 0)
-                    if height and filesize and height not in size_map:
-                        size_map[height] = filesize
+                    
+                    # Solo formatos con video y audio (formatos combinados como el 18)
+                    if height and vcodec != 'none' and acodec != 'none' and height not in seen_heights:
+                        seen_heights.add(height)
+                        width = f.get('width', int(height * 16/9))
+                        fps = f.get('fps', 30)
+                        
+                        formats.append({
+                            'format_id': format_id,  # Usar el ID real del formato
+                            'ext': ext,
+                            'quality': f'{height}p',
+                            'height': height,
+                            'resolution': f'{width}x{height}',
+                            'fps': fps,
+                            'vcodec': vcodec[:20],
+                            'acodec': acodec[:20],
+                            'filesize': filesize,
+                            'filesize_mb': round(filesize / (1024 * 1024), 2) if filesize else 'N/A',
+                            'has_audio': True
+                        })
                 
-                formats = [
-                    {'format_id': 'best[height<=144]', 'ext': 'mp4', 'quality': '144p', 'height': 144, 'resolution': '256x144', 'fps': 30, 'vcodec': 'h264', 'acodec': 'aac', 'filesize': size_map.get(144, 0), 'filesize_mb': round(size_map.get(144, 0) / (1024 * 1024), 2) if size_map.get(144) else '~5-10', 'has_audio': True},
-                    {'format_id': 'best[height<=240]', 'ext': 'mp4', 'quality': '240p', 'height': 240, 'resolution': '426x240', 'fps': 30, 'vcodec': 'h264', 'acodec': 'aac', 'filesize': size_map.get(240, 0), 'filesize_mb': round(size_map.get(240, 0) / (1024 * 1024), 2) if size_map.get(240) else '~10-20', 'has_audio': True},
-                    {'format_id': 'best[height<=360]', 'ext': 'mp4', 'quality': '360p', 'height': 360, 'resolution': '640x360', 'fps': 30, 'vcodec': 'h264', 'acodec': 'aac', 'filesize': size_map.get(360, 0), 'filesize_mb': round(size_map.get(360, 0) / (1024 * 1024), 2) if size_map.get(360) else '~20-40', 'has_audio': True},
-                    {'format_id': 'best[height<=480]', 'ext': 'mp4', 'quality': '480p', 'height': 480, 'resolution': '854x480', 'fps': 30, 'vcodec': 'h264', 'acodec': 'aac', 'filesize': size_map.get(480, 0), 'filesize_mb': round(size_map.get(480, 0) / (1024 * 1024), 2) if size_map.get(480) else '~40-80', 'has_audio': True},
-                    {'format_id': 'best[height<=720]', 'ext': 'mp4', 'quality': '720p', 'height': 720, 'resolution': '1280x720', 'fps': 30, 'vcodec': 'h264', 'acodec': 'aac', 'filesize': size_map.get(720, 0), 'filesize_mb': round(size_map.get(720, 0) / (1024 * 1024), 2) if size_map.get(720) else '~80-150', 'has_audio': True},
-                    {'format_id': 'best[height<=1080]', 'ext': 'mp4', 'quality': '1080p', 'height': 1080, 'resolution': '1920x1080', 'fps': 30, 'vcodec': 'h264', 'acodec': 'aac', 'filesize': size_map.get(1080, 0), 'filesize_mb': round(size_map.get(1080, 0) / (1024 * 1024), 2) if size_map.get(1080) else '~150-300', 'has_audio': True},
-                    {'format_id': 'best[height<=1440]', 'ext': 'mp4', 'quality': '1440p', 'height': 1440, 'resolution': '2560x1440', 'fps': 30, 'vcodec': 'h264', 'acodec': 'aac', 'filesize': size_map.get(1440, 0), 'filesize_mb': round(size_map.get(1440, 0) / (1024 * 1024), 2) if size_map.get(1440) else '~300-500', 'has_audio': True},
-                    {'format_id': 'best[height<=2160]', 'ext': 'mp4', 'quality': '4K', 'height': 2160, 'resolution': '3840x2160', 'fps': 30, 'vcodec': 'h264', 'acodec': 'aac', 'filesize': size_map.get(2160, 0), 'filesize_mb': round(size_map.get(2160, 0) / (1024 * 1024), 2) if size_map.get(2160) else '~500-1000', 'has_audio': True},
-                ]
+                # Ordenar por altura
+                formats.sort(key=lambda x: x['height'])
                 
-                # Calcular tamaños aproximados para audio basado en duración
-                duration_min = duration / 60 if duration else 5
+                print(f"[INFO] YouTube - Formatos de video combinados: {len(formats)}")
+                if formats:
+                    print(f"[INFO] Resoluciones disponibles: {[f['quality'] for f in formats]}")
                 
-                audio_formats = [
-                    {'format_id': 'bestaudio[abr<=64]', 'ext': 'm4a', 'abr': 64, 'abr_text': '64kbps', 'acodec': 'aac', 'filesize': int(64 * 128 * duration_min) if duration else 0, 'filesize_mb': round(64 * 128 * duration_min / (1024 * 1024), 2) if duration else '~3-5'},
-                    {'format_id': 'bestaudio[abr<=128]', 'ext': 'm4a', 'abr': 128, 'abr_text': '128kbps', 'acodec': 'aac', 'filesize': int(128 * 128 * duration_min) if duration else 0, 'filesize_mb': round(128 * 128 * duration_min / (1024 * 1024), 2) if duration else '~5-8'},
-                    {'format_id': 'bestaudio', 'ext': 'm4a', 'abr': 160, 'abr_text': 'Mejor Calidad', 'acodec': 'opus', 'filesize': int(160 * 128 * duration_min) if duration else 0, 'filesize_mb': round(160 * 128 * duration_min / (1024 * 1024), 2) if duration else '~8-12'},
-                ]
+                # Extraer formatos de audio reales
+                audio_formats = []
+                seen_abr = set()
+                
+                for f in real_formats:
+                    acodec = f.get('acodec', 'none')
+                    vcodec = f.get('vcodec', 'none')
+                    abr = f.get('abr', 0)
+                    format_id = f.get('format_id', '')
+                    ext = f.get('ext', 'm4a')
+                    filesize = f.get('filesize') or f.get('filesize_approx', 0)
+                    
+                    # Solo formatos de audio puro (sin video)
+                    if acodec != 'none' and vcodec == 'none' and abr:
+                        abr_key = int(abr)
+                        if abr_key not in seen_abr:
+                            seen_abr.add(abr_key)
+                            audio_formats.append({
+                                'format_id': format_id,  # ID real
+                                'ext': ext,
+                                'abr': abr_key,
+                                'abr_text': f'{abr_key}kbps',
+                                'acodec': acodec[:20],
+                                'filesize': filesize,
+                                'filesize_mb': round(filesize / (1024 * 1024), 2) if filesize else 'N/A'
+                            })
+                
+                # Ordenar por bitrate
+                audio_formats.sort(key=lambda x: x['abr'])
+                
+                # Si no hay formatos de audio puros, ofrecer "bestaudio" genérico
+                if not audio_formats:
+                    duration_min = duration / 60 if duration else 5
+                    audio_formats = [
+                        {'format_id': 'bestaudio', 'ext': 'm4a', 'abr': 128, 'abr_text': 'Mejor Calidad', 'acodec': 'aac/opus', 'filesize': int(128 * 128 * duration_min) if duration else 0, 'filesize_mb': round(128 * 128 * duration_min / (1024 * 1024), 2) if duration else '~8-12'},
+                    ]
+                
+                print(f"[INFO] YouTube - Formatos de audio: {len(audio_formats)}")
             
             elif is_soundcloud:
                 # SoundCloud es solo audio
@@ -522,24 +572,9 @@ def download():
         else:
             # Descargar video
             if format_id and format_id != 'best':
-                # Para formatos predefinidos de YouTube (con restricción de altura)
-                if 'height<=' in format_id:
-                    # Extraer la altura del formato
-                    try:
-                        height = format_id.split('height<=')[1].split(']')[0]
-                        # Usar cadena de fallback robusta con múltiples estrategias:
-                        # 1. Mejor video de esa altura + mejor audio
-                        # 2. Mejor formato combinado de esa altura
-                        # 3. Cualquier formato con esa altura
-                        # 4. Mejor video + audio sin restricción
-                        # 5. Mejor formato disponible
-                        ydl_opts['format'] = f'bestvideo[height<={height}]+bestaudio/best[height<={height}]/[height<={height}]/bestvideo+bestaudio/best'
-                    except:
-                        # Si falla el parseo, usar formato seguro
-                        ydl_opts['format'] = 'bestvideo+bestaudio/best'
-                else:
-                    # Para otros formatos específicos
-                    ydl_opts['format'] = f'{format_id}+bestaudio/{format_id}/best'
+                # Usar directamente el format_id proporcionado (ahora son IDs reales)
+                # Si el formato no tiene audio, intentar combinar con bestaudio
+                ydl_opts['format'] = f'{format_id}/best'
             else:
                 ydl_opts['format'] = 'bestvideo+bestaudio/best'
             
