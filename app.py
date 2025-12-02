@@ -250,127 +250,23 @@ def get_formats():
             duration = info.get('duration', 0)
             thumbnail = info.get('thumbnail', '')
             
-            # Para YouTube, extraer formatos reales disponibles
+            # Para YouTube, usar opciones simples y seguras
             if is_youtube:
                 real_formats = info.get('formats', [])
                 print(f"[INFO] YouTube - Total formatos disponibles: {len(real_formats)}")
                 
-                # Primero: Buscar formatos combinados (video+audio en un solo archivo)
-                formats = []
-                seen_heights = set()
+                # Ofrecer calidades estándar usando selectores seguros
+                formats = [
+                    {'format_id': 'best', 'ext': 'mp4', 'quality': 'Mejor Calidad', 'height': 1080, 'resolution': '1920x1080', 'fps': 30, 'vcodec': 'h264', 'acodec': 'aac', 'filesize': 0, 'filesize_mb': 'Variable', 'has_audio': True},
+                    {'format_id': '22', 'ext': 'mp4', 'quality': '720p HD', 'height': 720, 'resolution': '1280x720', 'fps': 30, 'vcodec': 'h264', 'acodec': 'aac', 'filesize': 0, 'filesize_mb': 'Variable', 'has_audio': True},
+                    {'format_id': '18', 'ext': 'mp4', 'quality': '360p', 'height': 360, 'resolution': '640x360', 'fps': 30, 'vcodec': 'h264', 'acodec': 'aac', 'filesize': 0, 'filesize_mb': 'Variable', 'has_audio': True},
+                ]
                 
-                for f in real_formats:
-                    height = f.get('height')
-                    vcodec = f.get('vcodec', 'none')
-                    acodec = f.get('acodec', 'none')
-                    format_id = f.get('format_id', '')
-                    ext = f.get('ext', 'mp4')
-                    filesize = f.get('filesize') or f.get('filesize_approx', 0)
-                    
-                    # Solo formatos con video y audio (formatos combinados como el 18)
-                    if height and vcodec != 'none' and acodec != 'none' and height not in seen_heights:
-                        seen_heights.add(height)
-                        width = f.get('width', int(height * 16/9))
-                        fps = f.get('fps', 30)
-                        
-                        formats.append({
-                            'format_id': format_id,  # Usar el ID real del formato
-                            'ext': ext,
-                            'quality': f'{height}p',
-                            'height': height,
-                            'resolution': f'{width}x{height}',
-                            'fps': fps,
-                            'vcodec': vcodec[:20],
-                            'acodec': acodec[:20],
-                            'filesize': filesize,
-                            'filesize_mb': round(filesize / (1024 * 1024), 2) if filesize else 'N/A',
-                            'has_audio': True
-                        })
+                audio_formats = [
+                    {'format_id': 'bestaudio', 'ext': 'm4a', 'abr': 128, 'abr_text': 'Mejor Calidad', 'acodec': 'aac/opus', 'filesize': 0, 'filesize_mb': 'Variable'},
+                ]
                 
-                # Si no hay formatos combinados, usar formatos separados con estrategia de combinación
-                if not formats:
-                    print(f"[INFO] No hay formatos combinados, usando formatos separados")
-                    video_formats = {}
-                    
-                    for f in real_formats:
-                        height = f.get('height')
-                        vcodec = f.get('vcodec', 'none')
-                        format_id = f.get('format_id', '')
-                        ext = f.get('ext', 'mp4')
-                        filesize = f.get('filesize') or f.get('filesize_approx', 0)
-                        
-                        # Formatos solo video
-                        if height and vcodec != 'none' and height not in video_formats:
-                            video_formats[height] = {
-                                'format_id': format_id,
-                                'ext': ext,
-                                'height': height,
-                                'filesize': filesize
-                            }
-                    
-                    # Crear opciones usando selección automática de yt-dlp
-                    for height in sorted(video_formats.keys()):
-                        vf = video_formats[height]
-                        width = int(height * 16/9)
-                        formats.append({
-                            'format_id': f'{height}p',  # Marcador simple que interpretaremos después
-                            'ext': 'mp4',
-                            'quality': f'{height}p',
-                            'height': height,
-                            'resolution': f'{width}x{height}',
-                            'fps': 30,
-                            'vcodec': 'h264/vp9',
-                            'acodec': 'aac/opus',
-                            'filesize': vf['filesize'],
-                            'filesize_mb': round(vf['filesize'] / (1024 * 1024), 2) if vf['filesize'] else 'N/A',
-                            'has_audio': True
-                        })
-                
-                # Ordenar por altura
-                formats.sort(key=lambda x: x['height'])
-                
-                print(f"[INFO] YouTube - Formatos de video: {len(formats)}")
-                if formats:
-                    print(f"[INFO] Resoluciones disponibles: {[f['quality'] for f in formats]}")
-                
-                # Extraer formatos de audio reales
-                audio_formats = []
-                seen_abr = set()
-                
-                for f in real_formats:
-                    acodec = f.get('acodec', 'none')
-                    vcodec = f.get('vcodec', 'none')
-                    abr = f.get('abr', 0)
-                    format_id = f.get('format_id', '')
-                    ext = f.get('ext', 'm4a')
-                    filesize = f.get('filesize') or f.get('filesize_approx', 0)
-                    
-                    # Solo formatos de audio puro (sin video)
-                    if acodec != 'none' and vcodec == 'none' and abr:
-                        abr_key = int(abr)
-                        if abr_key not in seen_abr:
-                            seen_abr.add(abr_key)
-                            audio_formats.append({
-                                'format_id': format_id,  # ID real
-                                'ext': ext,
-                                'abr': abr_key,
-                                'abr_text': f'{abr_key}kbps',
-                                'acodec': acodec[:20],
-                                'filesize': filesize,
-                                'filesize_mb': round(filesize / (1024 * 1024), 2) if filesize else 'N/A'
-                            })
-                
-                # Ordenar por bitrate
-                audio_formats.sort(key=lambda x: x['abr'])
-                
-                # Si no hay formatos de audio puros, ofrecer "bestaudio" genérico
-                if not audio_formats:
-                    duration_min = duration / 60 if duration else 5
-                    audio_formats = [
-                        {'format_id': 'bestaudio', 'ext': 'm4a', 'abr': 128, 'abr_text': 'Mejor Calidad', 'acodec': 'aac/opus', 'filesize': int(128 * 128 * duration_min) if duration else 0, 'filesize_mb': round(128 * 128 * duration_min / (1024 * 1024), 2) if duration else '~8-12'},
-                    ]
-                
-                print(f"[INFO] YouTube - Formatos de audio: {len(audio_formats)}")
+                print(f"[INFO] YouTube - Usando formatos estándar seguros")
             
             elif is_soundcloud:
                 # SoundCloud es solo audio
@@ -633,16 +529,10 @@ def download():
         else:
             # Descargar video
             if format_id and format_id != 'best':
-                # Si el format_id es algo como "360p", convertir a selector
-                if format_id.endswith('p') and format_id[:-1].isdigit():
-                    height = format_id[:-1]
-                    # Estrategia robusta: mejor video de esa altura + mejor audio, o cualquier formato de esa altura
-                    ydl_opts['format'] = f'bv*[height<={height}]+ba/b[height<={height}]/bv*+ba/b'
-                else:
-                    # ID real de formato o selector ya construido
-                    ydl_opts['format'] = f'{format_id}/bv*+ba/b'
+                # Usar el format_id directamente, con fallback a best
+                ydl_opts['format'] = f'{format_id}/best'
             else:
-                ydl_opts['format'] = 'bv*+ba/b'  # Mejor video + mejor audio / mejor combinado
+                ydl_opts['format'] = 'best'
             
             # Configurar formato de salida
             ydl_opts['merge_output_format'] = output_format if output_format else 'mp4'
