@@ -513,11 +513,8 @@ def download():
                             print("⚠ [Descarga] No se pudieron cargar cookies del navegador")
         
         if download_type == 'audio':
-            # Descargar solo audio
-            if format_id and format_id != 'best':
-                ydl_opts['format'] = format_id
-            else:
-                ydl_opts['format'] = 'bestaudio/best'
+            # Descargar solo audio - estrategia múltiple
+            ydl_opts['format'] = 'bestaudio/best'
             
             ydl_opts['postprocessors'] = [{
                 'key': 'FFmpegExtractAudio',
@@ -525,12 +522,9 @@ def download():
                 'preferredquality': '320' if output_format == 'mp3' else '0',
             }]
         else:
-            # Descargar video
-            if format_id and format_id != 'best':
-                # Usar el format_id directamente, con fallback a best
-                ydl_opts['format'] = f'{format_id}/best'
-            else:
-                ydl_opts['format'] = 'best'
+            # Descargar video - estrategia múltiple con fallbacks
+            # Intenta: mejor video + mejor audio, si falla usa cualquier formato combinado
+            ydl_opts['format'] = 'bestvideo+bestaudio/best'
             
             # Configurar formato de salida
             ydl_opts['merge_output_format'] = output_format if output_format else 'mp4'
