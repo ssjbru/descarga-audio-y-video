@@ -25,46 +25,34 @@ app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # No cachear en desarrollo
 DEFAULT_DOWNLOAD_FOLDER = os.path.join('C:\\', 'Temp', 'descargardepags')
 DOWNLOAD_FOLDER = DEFAULT_DOWNLOAD_FOLDER
 
-# Buscar cookies en múltiples ubicaciones
+# Buscar cookies en múltiples ubicaciones y manejar read-only
 COOKIES_FILE = None
-COOKIES_FILE_WRITABLE = None  # Copia escribible para yt-dlp
 
 possible_cookie_paths = [
-    '/etc/secrets/www.youtube.com_cookies',  # Render Secret Files (nuevo)
-    '/etc/secrets/youtube_cookies.txt',  # Render Secret Files (anterior)
-    os.path.join(os.getcwd(), 'www.youtube.com_cookies'),  # Carpeta actual (nuevo)
+    '/etc/secrets/youtube_cookies.txt',  # Render Secret Files
+    '/etc/secrets/www.youtube.com_cookies',  # Render Secret Files (alternativo)
     os.path.join(os.getcwd(), 'youtube_cookies.txt'),  # Carpeta actual
-    'www.youtube.com_cookies',  # Relativo (nuevo)
-    'youtube_cookies.txt'  # Relativo
+    os.path.join(os.getcwd(), 'www.youtube.com_cookies'),  # Carpeta actual (alternativo)
 ]
+
 for path in possible_cookie_paths:
     if os.path.exists(path) and os.path.getsize(path) > 0:
-        COOKIES_FILE = path
-        print(f"✓ Archivo de cookies encontrado en: {path}")
-        
-        # Si el archivo es de solo lectura (como en Render), copiarlo a temp
+        # Copiar siempre a ubicación temporal escribible para evitar errores
         try:
-            # Intentar abrir en modo append para verificar si es escribible
-            with open(path, 'a'):
-                pass
-            # Si funciona, usar directamente
-            COOKIES_FILE_WRITABLE = path
-            print(f"  → Cookies usables directamente (escribible)")
-        except (IOError, OSError):
-            # Si falla, copiar a archivo temporal escribible
-            try:
-                temp_dir = tempfile.gettempdir()
-                temp_cookies = os.path.join(temp_dir, 'youtube_cookies_temp.txt')
-                shutil.copy2(path, temp_cookies)
-                COOKIES_FILE_WRITABLE = temp_cookies
-                print(f"  → Cookies copiadas a ubicación escribible: {temp_cookies}")
-            except Exception as e:
-                print(f"  ⚠ No se pudo copiar cookies: {e}")
-                COOKIES_FILE_WRITABLE = None
-        break
+            temp_dir = tempfile.gettempdir()
+            temp_cookies = os.path.join(temp_dir, 'yt_cookies_writable.txt')
+            shutil.copy2(path, temp_cookies)
+            COOKIES_FILE = temp_cookies
+            print(f"✓ Cookies encontradas en: {path}")
+            print(f"  → Copiadas a ubicación escribible: {temp_cookies}")
+            break
+        except Exception as e:
+            print(f"⚠ Error copiando cookies desde {path}: {e}")
+            continue
 
 if not COOKIES_FILE:
-    print("⚠ No se encontraron cookies. Para evitar bloqueos de YouTube: Lee las instrucciones en COOKIES_SETUP.md")
+    print("⚠ No se encontraron cookies de YouTube")
+    print("  → Las descargas funcionarán sin cookies (puede haber limitaciones)")
 
 os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 
@@ -276,17 +264,17 @@ def debug_cookies():
     info = {
         'cookies_found': COOKIES_FILE is not None,
         'cookies_path': COOKIES_FILE,
-        'cookies_writable_path': COOKIES_FILE_WRITABLE,
+        'cookies_writable_path': COOKIES_FILE,
         'cookies_exists': os.path.exists(COOKIES_FILE) if COOKIES_FILE else False,
-        'cookies_writable_exists': os.path.exists(COOKIES_FILE_WRITABLE) if COOKIES_FILE_WRITABLE else False,
+        'cookies_writable_exists': os.path.exists(COOKIES_FILE) if COOKIES_FILE else False,
         'is_render': os.path.exists('/opt/render'),
     }
     
     # Si hay cookies, obtener info adicional
-    if COOKIES_FILE_WRITABLE and os.path.exists(COOKIES_FILE_WRITABLE):
+    if COOKIES_FILE and os.path.exists(COOKIES_FILE):
         try:
-            info['cookies_size'] = os.path.getsize(COOKIES_FILE_WRITABLE)
-            with open(COOKIES_FILE_WRITABLE, 'r', encoding='utf-8') as f:
+            info['cookies_size'] = os.path.getsize(COOKIES_FILE)
+            with open(COOKIES_FILE, 'r', encoding='utf-8') as f:
                 lines = f.readlines()
                 info['cookies_lines'] = len(lines)
                 cookie_lines = [l for l in lines if l.strip() and not l.startswith('#')]
@@ -510,9 +498,9 @@ def get_formats():
             }
             
             # USAR cookies - son necesarias para evitar detección de bot
-            if COOKIES_FILE_WRITABLE and os.path.exists(COOKIES_FILE_WRITABLE) and os.path.getsize(COOKIES_FILE_WRITABLE) > 0:
-                ydl_opts['cookiefile'] = COOKIES_FILE_WRITABLE
-                print(f"✓ Cookies de YouTube cargadas desde archivo: {COOKIES_FILE_WRITABLE}")
+            if COOKIES_FILE and os.path.exists(COOKIES_FILE) and os.path.getsize(COOKIES_FILE) > 0:
+                ydl_opts['cookiefile'] = COOKIES_FILE
+                print(f"✓ Cookies de YouTube cargadas desde archivo: {COOKIES_FILE}")
             else:
                 print("⚠ Sin cookies - YouTube bloqueará como bot")
             
