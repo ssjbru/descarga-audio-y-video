@@ -11,6 +11,7 @@ import shutil
 import tempfile
 import requests
 import re
+import random
 
 app = Flask(__name__)
 
@@ -24,6 +25,41 @@ app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # No cachear en desarrollo
 # El usuario puede cambiarla desde la interfaz
 DEFAULT_DOWNLOAD_FOLDER = os.path.join('C:\\', 'Temp', 'descargardepags')
 DOWNLOAD_FOLDER = DEFAULT_DOWNLOAD_FOLDER
+
+# Pool de User-Agents para rotar y evitar bloqueos
+USER_AGENTS = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15',
+]
+
+# Cache simple en memoria para metadatos de videos (TTL: 1 hora)
+video_metadata_cache = {}
+CACHE_TTL = 3600  # 1 hora en segundos
+
+def get_random_user_agent():
+    """Retorna un User-Agent aleatorio del pool"""
+    return random.choice(USER_AGENTS)
+
+def get_cached_metadata(video_id):
+    """Obtiene metadata cacheada si existe y no ha expirado"""
+    if video_id in video_metadata_cache:
+        cached_data, timestamp = video_metadata_cache[video_id]
+        if time.time() - timestamp < CACHE_TTL:
+            print(f"[CACHE] ✓ Metadata encontrada para {video_id}")
+            return cached_data
+        else:
+            print(f"[CACHE] ⏰ Metadata expirada para {video_id}")
+            del video_metadata_cache[video_id]
+    return None
+
+def cache_metadata(video_id, metadata):
+    """Guarda metadata en cache con timestamp"""
+    video_metadata_cache[video_id] = (metadata, time.time())
+    print(f"[CACHE] ✓ Metadata guardada para {video_id}")
 
 # Buscar cookies en múltiples ubicaciones y manejar read-only
 COOKIES_FILE = None
@@ -413,18 +449,40 @@ def get_formats():
                 
                 thumbnail = f"https://i.ytimg.com/vi/{video_id}/maxresdefault.jpg"
                 
+                # Verificar cache primero
+                cached_formats = get_cached_metadata(video_id)
+                if cached_formats:
+                    return jsonify({
+                        'title': title,
+                        'duration': duration,
+                        'thumbnail': thumbnail,
+                        'formats': cached_formats['formats'],
+                        'audio_formats': cached_formats['audio_formats'],
+                        'platform': 'youtube-cobalt'
+                    })
+                
                 # Obtener formatos reales disponibles con yt-dlp (modo rápido)
                 print(f"[COBALT] Detectando calidades disponibles...")
                 formats_with_sizes = []
                 available_formats = {}
                 
                 try:
+                    # Usar User-Agent aleatorio para evitar bloqueos
+                    user_agent = get_random_user_agent()
+                    print(f"[COBALT] User-Agent: {user_agent[:50]}...")
+                    
                     ydl_opts = {
                         'quiet': True,
                         'no_warnings': True,
                         'skip_download': True,
                         'extract_flat': False,
                         'socket_timeout': 15,
+                        'http_headers': {
+                            'User-Agent': user_agent,
+                            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                            'Accept-Language': 'en-us,en;q=0.5',
+                            'Sec-Fetch-Mode': 'navigate',
+                        }
                     }
                     if COOKIES_FILE and os.path.exists(COOKIES_FILE):
                         ydl_opts['cookiefile'] = COOKIES_FILE
@@ -521,6 +579,12 @@ def get_formats():
                 audio_formats = [
                     {'format_id': 'cobalt-audio', 'ext': 'm4a', 'abr': 128, 'abr_text': 'Mejor Calidad', 'acodec': 'aac', 'filesize': audio_filesize, 'filesize_mb': audio_filesize_mb},
                 ]
+                
+                # Guardar en cache para futuras peticiones
+                cache_metadata(video_id, {
+                    'formats': formats_with_sizes,
+                    'audio_formats': audio_formats
+                })
                 
                 print(f"[COBALT] ✓ Todo listo para: {title}")
                 
