@@ -72,8 +72,8 @@ os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 download_progress = {}
 
 # Configuración de Cobalt API v9 (la v7 fue cerrada en nov 2024)
-COBALT_API_URL = "https://api.cobalt.tools/"  # Nueva API v9
-COBALT_API_BACKUP = "https://co.wuk.sh/"  # Endpoint alternativo v9
+COBALT_API_URL = "https://api.cobalt.tools"  # Nueva API v9 (sin trailing slash)
+COBALT_API_BACKUP = "https://co.wuk.sh"  # Endpoint alternativo v9
 
 def download_with_cobalt(url, quality='max'):
     """
@@ -89,12 +89,12 @@ def download_with_cobalt(url, quality='max'):
             print(f"[COBALT v9] URL del video: {url}")
             print(f"[COBALT v9] Calidad solicitada: {quality}")
             
-            # Formato de la API v9
+            # Formato de la API v9 según documentación oficial
             payload = {
                 "url": url,
-                "videoQuality": quality,  # Cambió de vQuality a videoQuality
-                "filenameStyle": "basic",  # Cambió de filenamePattern a filenameStyle
-                "downloadMode": "auto"     # Nuevo campo en v9
+                "videoQuality": quality,
+                "filenameStyle": "basic",
+                "downloadMode": "auto"
             }
             
             headers = {
@@ -103,7 +103,8 @@ def download_with_cobalt(url, quality='max'):
             }
             
             print(f"[COBALT v9] Payload: {payload}")
-            response = requests.post(endpoint, json=payload, headers=headers, timeout=30)
+            # POST a la raíz del endpoint
+            response = requests.post(f"{endpoint}/", json=payload, headers=headers, timeout=30)
             
             print(f"[COBALT v9] Código de respuesta: {response.status_code}")
             print(f"[COBALT v9] Respuesta completa: {response.text[:500]}")
@@ -176,7 +177,8 @@ def download_with_cobalt_audio(url):
             }
             
             print(f"[COBALT v9] Payload audio: {payload}")
-            response = requests.post(endpoint, json=payload, headers=headers, timeout=30)
+            # POST a la raíz del endpoint
+            response = requests.post(f"{endpoint}/", json=payload, headers=headers, timeout=30)
             
             print(f"[COBALT v9] Código de respuesta audio: {response.status_code}")
             print(f"[COBALT v9] Respuesta audio: {response.text[:500]}")
