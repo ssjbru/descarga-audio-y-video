@@ -289,30 +289,52 @@ def get_formats():
                 # 2. Obtener duración desde múltiples fuentes (con respaldos)
                 duration = 0
                 
-                # MÉTODO 1: HTML Scraping de YouTube (MÁS CONFIABLE)
+                # MÉTODO 1: yt-dlp solo para metadata (sin descargar, modo extract_flat)
                 try:
-                    print(f"[COBALT] Intentando extraer del HTML de YouTube...")
-                    headers = {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                    print(f"[COBALT] Intentando yt-dlp en modo metadata...")
+                    ydl_opts = {
+                        'quiet': True,
+                        'no_warnings': True,
+                        'extract_flat': True,
+                        'skip_download': True,
+                        'socket_timeout': 10,
                     }
-                    yt_page = requests.get(f"https://www.youtube.com/watch?v={video_id}", headers=headers, timeout=10)
-                    if yt_page.status_code == 200:
-                        # Buscar duración en el HTML (múltiples patrones)
-                        duration_patterns = [
-                            r'"lengthSeconds":"(\d+)"',
-                            r'lengthSeconds\\":\\"(\d+)\\"',
-                            r'"length":"(\d+)"',
-                        ]
-                        for pattern in duration_patterns:
-                            duration_matches = re.findall(pattern, yt_page.text)
-                            if duration_matches:
-                                duration = int(duration_matches[0])
-                                print(f"[COBALT] ✓ Duración desde HTML: {duration}s")
-                                break
+                    if COOKIES_FILE and os.path.exists(COOKIES_FILE):
+                        ydl_opts['cookiefile'] = COOKIES_FILE
+                    
+                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                        info = ydl.extract_info(url, download=False)
+                        duration = info.get('duration', 0)
+                        if duration > 0:
+                            print(f"[COBALT] ✓ Duración desde yt-dlp: {duration}s")
                 except Exception as e:
-                    print(f"[COBALT] ⚠ Extracción HTML falló: {e}")
+                    print(f"[COBALT] ⚠ yt-dlp metadata falló: {e}")
                 
-                # MÉTODO 2: Invidious como respaldo
+                # MÉTODO 2: HTML Scraping de YouTube
+                if duration == 0:
+                    try:
+                        print(f"[COBALT] Intentando extraer del HTML de YouTube...")
+                        headers = {
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                        }
+                        yt_page = requests.get(f"https://www.youtube.com/watch?v={video_id}", headers=headers, timeout=10)
+                        if yt_page.status_code == 200:
+                            # Buscar duración en el HTML (múltiples patrones)
+                            duration_patterns = [
+                                r'"lengthSeconds":"(\d+)"',
+                                r'lengthSeconds\\":\\"(\d+)\\"',
+                                r'"length":"(\d+)"',
+                            ]
+                            for pattern in duration_patterns:
+                                duration_matches = re.findall(pattern, yt_page.text)
+                                if duration_matches:
+                                    duration = int(duration_matches[0])
+                                    print(f"[COBALT] ✓ Duración desde HTML: {duration}s")
+                                    break
+                    except Exception as e:
+                        print(f"[COBALT] ⚠ Extracción HTML falló: {e}")
+                
+                # MÉTODO 3: Invidious como respaldo
                 if duration == 0:
                     invidious_instances = [
                         f"https://inv.nadeko.net/api/v1/videos/{video_id}",
@@ -335,29 +357,10 @@ def get_formats():
                             print(f"[COBALT] ⚠ Instancia {invidious_url.split('/')[2]} falló: {e}")
                             continue
                 
-                # MÉTODO 3: noembed.com como último recurso
                 if duration == 0:
-                    try:
-                        print(f"[COBALT] Intentando noembed.com...")
-                        noembed_url = f"https://noembed.com/embed?url=https://www.youtube.com/watch?v={video_id}"
-                        noembed_response = requests.get(noembed_url, timeout=8)
-                        if noembed_response.status_code == 200:
-                            noembed_data = noembed_response.json()
-                            if 'html' in noembed_data:
-                                duration_match = re.search(r'PT(\d+)M(\d+)S|PT(\d+)S', str(noembed_data))
-                                if duration_match:
-                                    if duration_match.group(1):
-                                        minutes = int(duration_match.group(1))
-                                        seconds = int(duration_match.group(2))
-                                        duration = minutes * 60 + seconds
-                                    else:
-                                        duration = int(duration_match.group(3))
-                                    print(f"[COBALT] ✓ Duración desde noembed: {duration}s")
-                    except Exception as e:
-                        print(f"[COBALT] ⚠ noembed falló: {e}")
-                
-                if duration == 0:
-                    print(f"[COBALT] ⚠ No se pudo obtener duración de ninguna fuente")
+                    print(f"[COBALT] ⚠ No se pudo obtener duración de ninguna fuente, usando duración estimada")
+                    # Como último recurso, usar una duración promedio de 3 minutos para calcular tamaños
+                    duration = 180
                 
                 # Formatear duración correctamente
                 if duration > 0:
