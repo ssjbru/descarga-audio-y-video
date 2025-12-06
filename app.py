@@ -384,18 +384,12 @@ def get_formats():
                 try:
                     user_agent = get_random_user_agent()
                     
-                    # Opciones optimizadas para obtener TODOS los formatos incluido 4K
+                    # Configuración sin restricciones para ver todos los formatos
                     ydl_opts = {
-                        'quiet': True,
-                        'no_warnings': True,
+                        'quiet': False,  # Ver mensajes de yt-dlp para debugging
+                        'no_warnings': False,
                         'skip_download': True,
                         'socket_timeout': 30,
-                        'format': 'all',  # Listar absolutamente TODOS los formatos
-                        'extractor_args': {
-                            'youtube': {
-                                'player_client': ['ios', 'web', 'android'],  # ios tiene mejor acceso a 4K
-                            }
-                        },
                         'http_headers': {
                             'User-Agent': user_agent,
                             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
