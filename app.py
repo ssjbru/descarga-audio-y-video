@@ -390,11 +390,10 @@ def get_formats():
                         'skip_download': True,
                         'extract_flat': False,  # Necesario para obtener formatos
                         'socket_timeout': 30,
-                        'format': 'bestvideo+bestaudio/best',  # Forzar obtención de todos los formatos
+                        'format': 'bestvideo*+bestaudio/best',  # * permite más formatos
                         'extractor_args': {
                             'youtube': {
-                                'player_client': ['android', 'web'],  # Probar múltiples clientes
-                                'skip': ['hls', 'dash']  # Evitar formatos adaptativos que ocultan 4K
+                                'player_client': ['android_creator', 'web'],  # android_creator tiene más formatos
                             }
                         },
                         'http_headers': {
