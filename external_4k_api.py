@@ -4,6 +4,7 @@ Usa servicios especializados con infraestructura anti-bloqueo
 """
 
 import requests
+import re
 
 # Opciones de APIs gratuitas para 4K
 EXTERNAL_APIS = {
@@ -33,55 +34,104 @@ def get_4k_formats_external(video_id):
     
     # Método 1: Invidious (gratis, sin API key)
     try:
-        invidious_url = f"https://inv.riverside.rocks/api/v1/videos/{video_id}"
-        response = requests.get(invidious_url, timeout=10)
+        invidious_instances = [
+            "https://inv.riverside.rocks",
+            "https://invidious.snopyta.org",
+            "https://invidious.kavin.rocks",
+        ]
         
-        if response.status_code == 200:
-            data = response.json()
-            formats = []
-            
-            for fmt in data.get('formatStreams', []) + data.get('adaptiveFormats', []):
-                height = fmt.get('size', '').split('x')[-1] if 'x' in fmt.get('size', '') else None
-                if height:
-                    formats.append({
-                        'height': int(height),
-                        'url': fmt.get('url'),
-                        'quality': fmt.get('qualityLabel', ''),
-                        'filesize': fmt.get('clen', 0),
-                        'ext': fmt.get('container', 'mp4')
-                    })
-            
-            print(f"[EXTERNAL_API] ✓ Invidious encontró {len(formats)} formatos")
-            return formats
+        for instance in invidious_instances:
+            try:
+                invidious_url = f"{instance}/api/v1/videos/{video_id}"
+                print(f"[EXTERNAL_API] 🔍 Intentando Invidious: {instance}")
+                
+                response = requests.get(invidious_url, timeout=10)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    formats = []
+                    
+                    for fmt in data.get('formatStreams', []) + data.get('adaptiveFormats', []):
+                        quality_label = fmt.get('qualityLabel', '')
+                        size = fmt.get('size', '')
+                        
+                        # Extraer altura del quality_label (ej: "2160p60")
+                        height = None
+                        if quality_label:
+                            height_match = re.search(r'(\d+)p', quality_label)
+                            if height_match:
+                                height = int(height_match.group(1))
+                        
+                        # Fallback: extraer de size (ej: "3840x2160")
+                        if not height and 'x' in size:
+                            height = int(size.split('x')[-1])
+                        
+                        if height and height >= 2160:  # Solo 4K+
+                            formats.append({
+                                'height': height,
+                                'url': fmt.get('url'),
+                                'quality': quality_label,
+                                'filesize': int(fmt.get('clen', 0)),
+                                'ext': fmt.get('container', 'mp4')
+                            })
+                    
+                    if formats:
+                        print(f"[EXTERNAL_API] ✓ Invidious ({instance}) encontró {len(formats)} formatos 4K+")
+                        return formats
+                    else:
+                        print(f"[EXTERNAL_API] ⚠ Invidious ({instance}) sin formatos 4K")
+                        
+            except Exception as e:
+                print(f"[EXTERNAL_API] ⚠ Invidious ({instance}) error: {e}")
+                continue
             
     except Exception as e:
-        print(f"[EXTERNAL_API] ⚠ Invidious falló: {e}")
+        print(f"[EXTERNAL_API] ⚠ Invidious general error: {e}")
     
     # Método 2: Piped (alternativa gratis)
     try:
-        piped_url = f"https://pipedapi.kavin.rocks/streams/{video_id}"
-        response = requests.get(piped_url, timeout=10)
+        piped_instances = [
+            "https://pipedapi.kavin.rocks",
+            "https://pipedapi-libre.kavin.rocks",
+        ]
         
-        if response.status_code == 200:
-            data = response.json()
-            formats = []
-            
-            for fmt in data.get('videoStreams', []):
-                height = fmt.get('height')
-                if height:
-                    formats.append({
-                        'height': height,
-                        'url': fmt.get('url'),
-                        'quality': fmt.get('quality', ''),
-                        'filesize': fmt.get('contentLength', 0),
-                        'ext': fmt.get('format', 'mp4').lower()
-                    })
-            
-            print(f"[EXTERNAL_API] ✓ Piped encontró {len(formats)} formatos")
-            return formats
+        for instance in piped_instances:
+            try:
+                piped_url = f"{instance}/streams/{video_id}"
+                print(f"[EXTERNAL_API] 🔍 Intentando Piped: {instance}")
+                
+                response = requests.get(piped_url, timeout=10)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    formats = []
+                    
+                    for fmt in data.get('videoStreams', []):
+                        height = fmt.get('height')
+                        quality = fmt.get('quality', '')
+                        
+                        # Filtrar solo 4K+
+                        if height and height >= 2160:
+                            formats.append({
+                                'height': height,
+                                'url': fmt.get('url'),
+                                'quality': quality,
+                                'filesize': int(fmt.get('contentLength', 0)),
+                                'ext': fmt.get('format', 'mp4').lower()
+                            })
+                    
+                    if formats:
+                        print(f"[EXTERNAL_API] ✓ Piped ({instance}) encontró {len(formats)} formatos 4K+")
+                        return formats
+                    else:
+                        print(f"[EXTERNAL_API] ⚠ Piped ({instance}) sin formatos 4K")
+                        
+            except Exception as e:
+                print(f"[EXTERNAL_API] ⚠ Piped ({instance}) error: {e}")
+                continue
             
     except Exception as e:
-        print(f"[EXTERNAL_API] ⚠ Piped falló: {e}")
+        print(f"[EXTERNAL_API] ⚠ Piped general error: {e}")
     
     print("[EXTERNAL_API] ❌ Todas las APIs externas fallaron")
     return []
