@@ -389,8 +389,14 @@ def get_formats():
                         'no_warnings': True,
                         'skip_download': True,
                         'extract_flat': False,  # Necesario para obtener formatos
-                        'socket_timeout': 20,
+                        'socket_timeout': 30,
                         'format': 'bestvideo+bestaudio/best',  # Forzar obtención de todos los formatos
+                        'extractor_args': {
+                            'youtube': {
+                                'player_client': ['android', 'web'],  # Probar múltiples clientes
+                                'skip': ['hls', 'dash']  # Evitar formatos adaptativos que ocultan 4K
+                            }
+                        },
                         'http_headers': {
                             'User-Agent': user_agent,
                             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
