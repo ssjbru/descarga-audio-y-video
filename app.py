@@ -10,6 +10,7 @@ import subprocess
 import shutil
 import tempfile
 import requests
+import re
 
 app = Flask(__name__)
 
@@ -259,25 +260,45 @@ def get_formats():
         is_soundcloud = 'soundcloud.com' in url
         is_vimeo = 'vimeo.com' in url
         
-        # USAR COBALT API PARA YOUTUBE - evita bloqueos de IP
+        # USAR COBALT API PARA YOUTUBE - evita bloqueos de IP completamente
         if is_youtube:
-            print(f"[INFO] YouTube detectado - usando Cobalt API")
+            print(f"[INFO] YouTube detectado - usando SOLO Cobalt API (sin yt-dlp)")
             try:
-                # Obtener información básica con yt-dlp solo para título y thumbnail
-                ydl_opts = {
-                    'quiet': True,
-                    'skip_download': True,
-                    'no_check_certificate': True,
-                    'extract_flat': 'in_playlist',
+                # Extraer ID del video de la URL
+                import re
+                video_id_match = re.search(r'(?:v=|youtu\.be/)([a-zA-Z0-9_-]{11})', url)
+                video_id = video_id_match.group(1) if video_id_match else 'Video'
+                
+                print(f"[COBALT] Obteniendo información del video {video_id} desde Cobalt...")
+                
+                # Hacer petición a Cobalt para obtener metadata
+                payload = {
+                    "url": url,
+                    "vQuality": "max"
+                }
+                headers = {
+                    "Accept": "application/json",
+                    "Content-Type": "application/json"
                 }
                 
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    info = ydl.extract_info(url, download=False)
-                    title = info.get('title', 'Video de YouTube')
-                    duration = info.get('duration', 0)
-                    thumbnail = info.get('thumbnail', '')
+                try:
+                    response = requests.post(COBALT_API_URL, json=payload, headers=headers, timeout=15)
+                    if response.status_code == 200:
+                        data = response.json()
+                        # Cobalt puede devolver metadata en algunos casos
+                        title = data.get('title') or data.get('filename') or f"Video de YouTube ({video_id})"
+                        print(f"[COBALT] ✓ Título obtenido: {title}")
+                    else:
+                        title = f"Video de YouTube ({video_id})"
+                        print(f"[COBALT] ⚠ No se pudo obtener título, usando genérico")
+                except:
+                    title = f"Video de YouTube ({video_id})"
+                    print(f"[COBALT] ⚠ Error al consultar Cobalt, usando título genérico")
                 
-                # Ofrecer calidades de Cobalt
+                duration = 0  # Cobalt no proporciona duración en metadata
+                thumbnail = f"https://i.ytimg.com/vi/{video_id}/maxresdefault.jpg"
+                
+                # Ofrecer calidades de Cobalt (sin necesidad de yt-dlp)
                 formats = [
                     {'format_id': 'cobalt-max', 'ext': 'mp4', 'quality': '4K (2160p)', 'height': 2160, 'resolution': '3840x2160', 'fps': 60, 'vcodec': 'h264', 'acodec': 'aac', 'filesize': 0, 'filesize_mb': 'Variable', 'has_audio': True},
                     {'format_id': 'cobalt-1440', 'ext': 'mp4', 'quality': '2K (1440p)', 'height': 1440, 'resolution': '2560x1440', 'fps': 60, 'vcodec': 'h264', 'acodec': 'aac', 'filesize': 0, 'filesize_mb': 'Variable', 'has_audio': True},
@@ -291,6 +312,8 @@ def get_formats():
                     {'format_id': 'cobalt-audio', 'ext': 'm4a', 'abr': 128, 'abr_text': 'Mejor Calidad', 'acodec': 'aac', 'filesize': 0, 'filesize_mb': 'Variable'},
                 ]
                 
+                print(f"[COBALT] ✓ Formatos preparados para: {title}")
+                
                 return jsonify({
                     'title': title,
                     'duration': duration,
@@ -301,8 +324,10 @@ def get_formats():
                 })
                 
             except Exception as e:
-                print(f"[ERROR] Fallo Cobalt API: {e}")
-                return jsonify({'error': f'Error al obtener información del video: {str(e)}'}), 500
+                print(f"[ERROR COBALT] Fallo al preparar formatos: {e}")
+                import traceback
+                traceback.print_exc()
+                return jsonify({'error': f'Error al procesar video de YouTube: {str(e)}'}), 500
         
         # Configuración base universal para todas las plataformas
         ydl_opts = {
