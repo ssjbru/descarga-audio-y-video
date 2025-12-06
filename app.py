@@ -363,120 +363,34 @@ def get_formats():
                 except Exception as e:
                     print(f"[COBALT] ⚠ Error en oEmbed: {e}")
                 
-                # 2. Obtener duración desde múltiples fuentes (con respaldos)
-                duration = 0
-                
-                # MÉTODO 1: yt-dlp solo para metadata (sin descargar, modo extract_flat)
-                try:
-                    print(f"[COBALT] Intentando yt-dlp en modo metadata...")
-                    ydl_opts = {
-                        'quiet': True,
-                        'no_warnings': True,
-                        'extract_flat': True,
-                        'skip_download': True,
-                        'socket_timeout': 10,
-                    }
-                    if COOKIES_FILE and os.path.exists(COOKIES_FILE):
-                        ydl_opts['cookiefile'] = COOKIES_FILE
-                    
-                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                        info = ydl.extract_info(url, download=False)
-                        duration = info.get('duration', 0)
-                        if duration > 0:
-                            print(f"[COBALT] ✓ Duración desde yt-dlp: {duration}s")
-                except Exception as e:
-                    print(f"[COBALT] ⚠ yt-dlp metadata falló: {e}")
-                
-                # MÉTODO 2: HTML Scraping de YouTube
-                if duration == 0:
-                    try:
-                        print(f"[COBALT] Intentando extraer del HTML de YouTube...")
-                        headers = {
-                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-                        }
-                        yt_page = requests.get(f"https://www.youtube.com/watch?v={video_id}", headers=headers, timeout=10)
-                        if yt_page.status_code == 200:
-                            # Buscar duración en el HTML (múltiples patrones)
-                            duration_patterns = [
-                                r'"lengthSeconds":"(\d+)"',
-                                r'lengthSeconds\\":\\"(\d+)\\"',
-                                r'"length":"(\d+)"',
-                            ]
-                            for pattern in duration_patterns:
-                                duration_matches = re.findall(pattern, yt_page.text)
-                                if duration_matches:
-                                    duration = int(duration_matches[0])
-                                    print(f"[COBALT] ✓ Duración desde HTML: {duration}s")
-                                    break
-                    except Exception as e:
-                        print(f"[COBALT] ⚠ Extracción HTML falló: {e}")
-                
-                # MÉTODO 3: Invidious como respaldo
-                if duration == 0:
-                    invidious_instances = [
-                        f"https://inv.nadeko.net/api/v1/videos/{video_id}",
-                        f"https://invidious.jing.rocks/api/v1/videos/{video_id}",
-                        f"https://iv.nboeck.de/api/v1/videos/{video_id}",
-                        f"https://invidious.private.coffee/api/v1/videos/{video_id}",
-                    ]
-                    
-                    for invidious_url in invidious_instances:
-                        try:
-                            print(f"[COBALT] Intentando {invidious_url.split('/')[2]}...")
-                            invidious_response = requests.get(invidious_url, timeout=8)
-                            if invidious_response.status_code == 200:
-                                invidious_data = invidious_response.json()
-                                duration = invidious_data.get('lengthSeconds', 0)
-                                if duration > 0:
-                                    print(f"[COBALT] ✓ Duración desde Invidious: {duration}s")
-                                    break
-                        except Exception as e:
-                            print(f"[COBALT] ⚠ Instancia {invidious_url.split('/')[2]} falló: {e}")
-                            continue
-                
-                if duration == 0:
-                    print(f"[COBALT] ⚠ No se pudo obtener duración de ninguna fuente, usando duración estimada")
-                    # Como último recurso, usar una duración promedio de 3 minutos para calcular tamaños
-                    duration = 180
-                
-                # Formatear duración correctamente
-                if duration > 0:
-                    mins = duration // 60
-                    secs = duration % 60
-                    print(f"[COBALT] 📊 Duración final: {duration}s ({mins}:{secs:02d})")
-                else:
-                    print(f"[COBALT] 📊 Duración final: 0s (0:00)")
-                
-                thumbnail = f"https://i.ytimg.com/vi/{video_id}/maxresdefault.jpg"
-                
                 # Verificar cache primero
-                cached_formats = get_cached_metadata(video_id)
-                if cached_formats:
+                cached_data = get_cached_metadata(video_id)
+                if cached_data:
+                    print(f"[COBALT] ✓ Usando datos cacheados")
                     return jsonify({
                         'title': title,
-                        'duration': duration,
-                        'thumbnail': thumbnail,
-                        'formats': cached_formats['formats'],
-                        'audio_formats': cached_formats['audio_formats'],
+                        'duration': cached_data.get('duration', 0),
+                        'thumbnail': f"https://i.ytimg.com/vi/{video_id}/maxresdefault.jpg",
+                        'formats': cached_data['formats'],
+                        'audio_formats': cached_data['audio_formats'],
                         'platform': 'youtube-cobalt'
                     })
                 
-                # Obtener formatos reales disponibles con yt-dlp (modo rápido)
-                print(f"[COBALT] Detectando calidades disponibles...")
-                formats_with_sizes = []
+                # UNA SOLA LLAMADA a yt-dlp para obtener TODO (duración + formatos)
+                print(f"[COBALT] Analizando video con yt-dlp (optimizado)...")
+                duration = 0
                 available_formats = {}
                 
                 try:
-                    # Usar User-Agent aleatorio para evitar bloqueos
                     user_agent = get_random_user_agent()
-                    print(f"[COBALT] User-Agent: {user_agent[:50]}...")
                     
                     ydl_opts = {
                         'quiet': True,
                         'no_warnings': True,
                         'skip_download': True,
-                        'extract_flat': False,
-                        'socket_timeout': 15,
+                        'extract_flat': False,  # Necesario para obtener formatos
+                        'socket_timeout': 20,
+                        'format': 'bestvideo+bestaudio/best',  # Forzar obtención de todos los formatos
                         'http_headers': {
                             'User-Agent': user_agent,
                             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -489,21 +403,43 @@ def get_formats():
                     
                     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                         info = ydl.extract_info(url, download=False)
-                        yt_formats = info.get('formats', [])
                         
-                        # Encontrar formatos con video (agrupados por altura)
+                        # Obtener duración
+                        duration = info.get('duration', 0)
+                        if duration > 0:
+                            mins = duration // 60
+                            secs = duration % 60
+                            print(f"[COBALT] ✓ Duración: {duration}s ({mins}:{secs:02d})")
+                        
+                        # Obtener formatos disponibles
+                        yt_formats = info.get('formats', [])
+                        print(f"[COBALT] Total formatos: {len(yt_formats)}")
+                        
+                        # Agrupar por resolución (tomar el mejor de cada altura)
                         for fmt in yt_formats:
                             height = fmt.get('height')
                             vcodec = fmt.get('vcodec', 'none')
+                            filesize = fmt.get('filesize') or fmt.get('filesize_approx', 0)
+                            
                             if height and vcodec != 'none':
-                                if height not in available_formats or fmt.get('filesize', 0) > available_formats[height].get('filesize', 0):
+                                # Guardar el formato con mayor filesize por cada altura
+                                if height not in available_formats or filesize > available_formats[height].get('filesize', 0):
                                     available_formats[height] = fmt
                         
-                        print(f"[COBALT] Calidades detectadas: {sorted(available_formats.keys(), reverse=True)}")
+                        resolutions = sorted(available_formats.keys(), reverse=True)
+                        print(f"[COBALT] ✓ Calidades detectadas: {resolutions}")
+                        
                 except Exception as e:
-                    print(f"[COBALT] ⚠ No se pudo detectar calidades: {e}")
-                    # Si falla, asumir calidades comunes
+                    print(f"[COBALT] ⚠ Error en yt-dlp: {e}")
+                    # Fallback: asumir calidades comunes y duración de 3 min
+                    duration = 180
                     available_formats = {1080: {}, 720: {}, 480: {}, 360: {}}
+                    print(f"[COBALT] ⚠ Usando valores por defecto (duración: 3 min)")
+                
+                thumbnail = f"https://i.ytimg.com/vi/{video_id}/maxresdefault.jpg"
+                
+                # Generar formatos a partir de los detectados
+                formats_with_sizes = []
                 
                 # Bitrates típicos de YouTube para estimaciones
                 bitrate_estimates = {
@@ -534,7 +470,9 @@ def get_formats():
                     fmt = available_formats[height]
                     
                     # Intentar obtener tamaño real
-                    filesize = fmt.get('filesize') or fmt.get('filesize_approx', 0)
+                    filesize = fmt.get('filesize', 0) if isinstance(fmt, dict) else 0
+                    if not filesize:
+                        filesize = fmt.get('filesize_approx', 0) if isinstance(fmt, dict) else 0
                     
                     # Si no hay tamaño, estimar con bitrate
                     if filesize == 0 and duration > 0:
@@ -548,26 +486,22 @@ def get_formats():
                     
                     formats_with_sizes.append({
                         'format_id': quality_info['format_id'],
-                        'ext': fmt.get('ext', 'mp4'),
+                        'ext': fmt.get('ext', 'mp4') if isinstance(fmt, dict) else 'mp4',
                         'quality': quality_info['quality'],
                         'height': height,
                         'resolution': quality_info['resolution'],
-                        'fps': fmt.get('fps', quality_info['fps']),
-                        'vcodec': fmt.get('vcodec', 'h264'),
-                        'acodec': fmt.get('acodec', 'aac'),
+                        'fps': fmt.get('fps', quality_info['fps']) if isinstance(fmt, dict) else quality_info['fps'],
+                        'vcodec': fmt.get('vcodec', 'h264') if isinstance(fmt, dict) else 'h264',
+                        'acodec': fmt.get('acodec', 'aac') if isinstance(fmt, dict) else 'aac',
                         'filesize': filesize,
                         'filesize_mb': filesize_mb,
                         'has_audio': True
                     })
                 
-                print(f"[COBALT] ✓ {len(formats_with_sizes)} calidades reales encontradas")
-                
-                # Ya no necesitamos consultar yt-dlp para formatos
-                # Cobalt y yt-dlp ajustarán automáticamente a la mejor disponible
+                print(f"[COBALT] ✓ {len(formats_with_sizes)} calidades disponibles")
                 
                 # Calcular tamaño de audio
                 if duration > 0:
-                    # Audio típico: 128 kbps AAC
                     audio_bitrate_kbps = 128
                     audio_filesize = int((audio_bitrate_kbps * duration * 1000) / 8)
                     audio_filesize_mb = round(audio_filesize / (1024 * 1024), 2)
@@ -580,8 +514,9 @@ def get_formats():
                     {'format_id': 'cobalt-audio', 'ext': 'm4a', 'abr': 128, 'abr_text': 'Mejor Calidad', 'acodec': 'aac', 'filesize': audio_filesize, 'filesize_mb': audio_filesize_mb},
                 ]
                 
-                # Guardar en cache para futuras peticiones
+                # Guardar en cache
                 cache_metadata(video_id, {
+                    'duration': duration,
                     'formats': formats_with_sizes,
                     'audio_formats': audio_formats
                 })
