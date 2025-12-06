@@ -386,19 +386,12 @@ def get_formats():
                 try:
                     user_agent = get_random_user_agent()
                     
-                    # Configuración agresiva: intentar obtener TODOS los formatos
+                    # Configuración simple y efectiva
                     ydl_opts = {
                         'quiet': True,
                         'no_warnings': True,
                         'skip_download': True,
                         'socket_timeout': 30,
-                        'format': 'bestvideo*[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
-                        'extractor_args': {
-                            'youtube': {
-                                'player_client': ['android_testsuite', 'web', 'ios'],
-                                'skip': ['translated_subs']
-                            }
-                        },
                         'http_headers': {
                             'User-Agent': user_agent,
                             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
