@@ -718,8 +718,15 @@ function createFormatItem(format, type) {
         let sizeText = '';
         if (typeof format.filesize_mb === 'number') {
             sizeText = `${format.filesize_mb} MB`;
-        } else if (typeof format.filesize_mb === 'string' && format.filesize_mb.startsWith('~')) {
-            sizeText = `${format.filesize_mb} MB`;
+        } else if (typeof format.filesize_mb === 'string') {
+            if (format.filesize_mb.startsWith('~')) {
+                sizeText = `${format.filesize_mb} MB`;
+            } else if (format.filesize_mb === 'Variable') {
+                sizeText = 'Tamaño variable';
+            } else {
+                // Es un número como string
+                sizeText = `${format.filesize_mb} MB`;
+            }
         } else {
             sizeText = 'Tamaño variable';
         }
@@ -746,16 +753,23 @@ function createFormatItem(format, type) {
         let sizeText = '';
         if (typeof format.filesize_mb === 'number') {
             sizeText = `${format.filesize_mb} MB`;
-        } else if (typeof format.filesize_mb === 'string' && format.filesize_mb.startsWith('~')) {
-            sizeText = `${format.filesize_mb} MB`;
+        } else if (typeof format.filesize_mb === 'string') {
+            if (format.filesize_mb.startsWith('~')) {
+                sizeText = `${format.filesize_mb} MB`;
+            } else if (format.filesize_mb === 'Variable') {
+                sizeText = 'Tamaño variable';
+            } else {
+                // Es un número como string
+                sizeText = `${format.filesize_mb} MB`;
+            }
         } else {
             sizeText = 'Tamaño variable';
         }
         
         details.innerHTML = `
             <span>${format.ext.toUpperCase()}</span> • 
-            <span>Códec: ${format.acodec}</span> • 
-            <span style="color: var(--secondary-color); font-weight: 700;">📦 ${sizeText}</span>
+            <span style="color: var(--secondary-color); font-weight: 700;">📦 ${sizeText}</span><br>
+            <span style="font-size: 0.85rem; opacity: 0.8;">Códec: ${format.acodec}</span>
         `;
 
         infoDiv.appendChild(quality);

@@ -286,31 +286,73 @@ def get_formats():
                 except Exception as e:
                     print(f"[COBALT] ⚠ Error en oEmbed: {e}")
                 
-                # 2. Obtener duración desde múltiples instancias de Invidious (con respaldos)
+                # 2. Obtener duración desde múltiples fuentes (con respaldos)
                 duration = 0
-                invidious_instances = [
-                    f"https://inv.nadeko.net/api/v1/videos/{video_id}",
-                    f"https://invidious.jing.rocks/api/v1/videos/{video_id}",
-                    f"https://iv.nboeck.de/api/v1/videos/{video_id}",
-                    f"https://invidious.private.coffee/api/v1/videos/{video_id}",
-                ]
                 
-                for invidious_url in invidious_instances:
+                # Intentar primero con noembed.com (API agregadora muy confiable)
+                try:
+                    print(f"[COBALT] Intentando noembed.com...")
+                    noembed_url = f"https://noembed.com/embed?url=https://www.youtube.com/watch?v={video_id}"
+                    noembed_response = requests.get(noembed_url, timeout=8)
+                    if noembed_response.status_code == 200:
+                        noembed_data = noembed_response.json()
+                        # Extraer duración del HTML si está disponible
+                        if 'html' in noembed_data:
+                            import re
+                            # Buscar duración en formato ISO 8601
+                            duration_match = re.search(r'PT(\d+)M(\d+)S|PT(\d+)S', str(noembed_data))
+                            if duration_match:
+                                if duration_match.group(1):
+                                    minutes = int(duration_match.group(1))
+                                    seconds = int(duration_match.group(2))
+                                    duration = minutes * 60 + seconds
+                                else:
+                                    duration = int(duration_match.group(3))
+                                print(f"[COBALT] ✓ Duración desde noembed: {duration}s")
+                except Exception as e:
+                    print(f"[COBALT] ⚠ noembed falló: {e}")
+                
+                # Si no funcionó, intentar con Invidious
+                if duration == 0:
+                    invidious_instances = [
+                        f"https://inv.nadeko.net/api/v1/videos/{video_id}",
+                        f"https://invidious.jing.rocks/api/v1/videos/{video_id}",
+                        f"https://iv.nboeck.de/api/v1/videos/{video_id}",
+                        f"https://invidious.private.coffee/api/v1/videos/{video_id}",
+                    ]
+                    
+                    for invidious_url in invidious_instances:
+                        try:
+                            print(f"[COBALT] Intentando {invidious_url.split('/')[2]}...")
+                            invidious_response = requests.get(invidious_url, timeout=8)
+                            if invidious_response.status_code == 200:
+                                invidious_data = invidious_response.json()
+                                duration = invidious_data.get('lengthSeconds', 0)
+                                if duration > 0:
+                                    print(f"[COBALT] ✓ Duración: {duration}s ({duration//60}:{duration%60:02d})")
+                                    break
+                        except Exception as e:
+                            print(f"[COBALT] ⚠ Instancia falló: {e}")
+                            continue
+                
+                # Último recurso: intentar extraer del HTML de YouTube directamente
+                if duration == 0:
                     try:
-                        print(f"[COBALT] Intentando {invidious_url.split('/')[2]}...")
-                        invidious_response = requests.get(invidious_url, timeout=8)
-                        if invidious_response.status_code == 200:
-                            invidious_data = invidious_response.json()
-                            duration = invidious_data.get('lengthSeconds', 0)
-                            if duration > 0:
-                                print(f"[COBALT] ✓ Duración: {duration}s ({duration//60}:{duration%60:02d})")
-                                break
+                        print(f"[COBALT] Intentando extraer del HTML de YouTube...")
+                        yt_page = requests.get(f"https://www.youtube.com/watch?v={video_id}", timeout=10)
+                        if yt_page.status_code == 200:
+                            # Buscar duración en el HTML (está en varios lugares)
+                            duration_matches = re.findall(r'"lengthSeconds":"(\d+)"', yt_page.text)
+                            if duration_matches:
+                                duration = int(duration_matches[0])
+                                print(f"[COBALT] ✓ Duración desde HTML: {duration}s")
                     except Exception as e:
-                        print(f"[COBALT] ⚠ Instancia falló: {e}")
-                        continue
+                        print(f"[COBALT] ⚠ Extracción HTML falló: {e}")
                 
                 if duration == 0:
-                    print(f"[COBALT] ⚠ No se pudo obtener duración, usando 0")
+                    print(f"[COBALT] ⚠ No se pudo obtener duración de ninguna fuente")
+                
+                print(f"[COBALT] 📊 Duración final: {duration}s ({duration//60 if duration > 0 else 0}:{duration%60:02d if duration > 0 else 0})")
                 
                 thumbnail = f"https://i.ytimg.com/vi/{video_id}/maxresdefault.jpg"
                 
@@ -334,9 +376,12 @@ def get_formats():
                     size_mb = (bitrate * duration_seconds) / (8 * 1024)  # Convertir a MB
                     
                     if size_mb < 1024:
-                        return f"~{int(size_mb)} MB"
+                        return f"~{int(size_mb)}"  # Solo el número, el script.js agregará " MB"
                     else:
-                        return f"~{size_mb/1024:.1f} GB"
+                        size_gb = size_mb / 1024
+                        return f"~{int(size_gb * 1024)}"  # Convertir a MB para consistencia
+                
+                print(f"[COBALT] 📦 Calculando tamaños basados en duración: {duration}s...")
                 
                 # Ofrecer calidades de Cobalt con tamaños estimados
                 formats = [
@@ -352,6 +397,11 @@ def get_formats():
                 audio_formats = [
                     {'format_id': 'cobalt-audio', 'ext': 'm4a', 'abr': 128, 'abr_text': 'Mejor Calidad', 'acodec': 'aac', 'filesize': 0, 'filesize_mb': audio_size},
                 ]
+                
+                # Log de tamaños estimados
+                for fmt in formats:
+                    print(f"[COBALT]   {fmt['quality']}: {fmt['filesize_mb']} MB")
+                print(f"[COBALT]   Audio: {audio_size} MB")
                 
                 print(f"[COBALT] ✓ Todo listo para: {title}")
                 
