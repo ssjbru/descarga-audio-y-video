@@ -9,6 +9,7 @@ import time
 import subprocess
 import shutil
 import tempfile
+import requests
 
 app = Flask(__name__)
 
@@ -68,6 +69,93 @@ os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 
 # Diccionario para almacenar el progreso de las descargas
 download_progress = {}
+
+# Configuración de Cobalt API
+COBALT_API_URL = "https://api.cobalt.tools/api/json"
+
+def download_with_cobalt(url, quality='max'):
+    """
+    Descarga videos usando Cobalt API (para YouTube principalmente)
+    Retorna la URL de descarga directa o None si falla
+    """
+    try:
+        print(f"[COBALT] Intentando descargar con Cobalt API: {url}")
+        
+        payload = {
+            "url": url,
+            "vQuality": quality,  # max, 2160, 1440, 1080, 720, 480, 360
+            "filenamePattern": "basic",
+            "isAudioOnly": False,
+            "disableMetadata": False
+        }
+        
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+        }
+        
+        response = requests.post(COBALT_API_URL, json=payload, headers=headers, timeout=30)
+        
+        if response.status_code == 200:
+            data = response.json()
+            status = data.get('status')
+            
+            if status == 'redirect' or status == 'stream':
+                download_url = data.get('url')
+                print(f"[COBALT] ✓ URL de descarga obtenida: {download_url[:50]}...")
+                return download_url
+            elif status == 'picker':
+                # Múltiples opciones (videos de carrusel, etc)
+                picker = data.get('picker', [])
+                if picker:
+                    download_url = picker[0].get('url')
+                    print(f"[COBALT] ✓ URL de descarga obtenida (picker): {download_url[:50]}...")
+                    return download_url
+            else:
+                print(f"[COBALT] ✗ Estado no manejado: {status}")
+                return None
+        else:
+            print(f"[COBALT] ✗ Error HTTP {response.status_code}: {response.text}")
+            return None
+            
+    except Exception as e:
+        print(f"[COBALT] ✗ Error: {e}")
+        return None
+
+def download_with_cobalt_audio(url):
+    """
+    Descarga solo audio usando Cobalt API
+    """
+    try:
+        print(f"[COBALT] Descargando audio con Cobalt API: {url}")
+        
+        payload = {
+            "url": url,
+            "isAudioOnly": True,
+            "filenamePattern": "basic",
+            "disableMetadata": False
+        }
+        
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+        }
+        
+        response = requests.post(COBALT_API_URL, json=payload, headers=headers, timeout=30)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('status') in ['redirect', 'stream']:
+                download_url = data.get('url')
+                print(f"[COBALT] ✓ URL de audio obtenida")
+                return download_url
+        
+        print(f"[COBALT] ✗ No se pudo obtener audio")
+        return None
+        
+    except Exception as e:
+        print(f"[COBALT] ✗ Error descargando audio: {e}")
+        return None
 
 def clean_old_files():
     """Elimina archivos con más de 1 hora"""
@@ -171,6 +259,51 @@ def get_formats():
         is_soundcloud = 'soundcloud.com' in url
         is_vimeo = 'vimeo.com' in url
         
+        # USAR COBALT API PARA YOUTUBE - evita bloqueos de IP
+        if is_youtube:
+            print(f"[INFO] YouTube detectado - usando Cobalt API")
+            try:
+                # Obtener información básica con yt-dlp solo para título y thumbnail
+                ydl_opts = {
+                    'quiet': True,
+                    'skip_download': True,
+                    'no_check_certificate': True,
+                    'extract_flat': 'in_playlist',
+                }
+                
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    info = ydl.extract_info(url, download=False)
+                    title = info.get('title', 'Video de YouTube')
+                    duration = info.get('duration', 0)
+                    thumbnail = info.get('thumbnail', '')
+                
+                # Ofrecer calidades de Cobalt
+                formats = [
+                    {'format_id': 'cobalt-max', 'ext': 'mp4', 'quality': '4K (2160p)', 'height': 2160, 'resolution': '3840x2160', 'fps': 60, 'vcodec': 'h264', 'acodec': 'aac', 'filesize': 0, 'filesize_mb': 'Variable', 'has_audio': True},
+                    {'format_id': 'cobalt-1440', 'ext': 'mp4', 'quality': '2K (1440p)', 'height': 1440, 'resolution': '2560x1440', 'fps': 60, 'vcodec': 'h264', 'acodec': 'aac', 'filesize': 0, 'filesize_mb': 'Variable', 'has_audio': True},
+                    {'format_id': 'cobalt-1080', 'ext': 'mp4', 'quality': 'Full HD (1080p)', 'height': 1080, 'resolution': '1920x1080', 'fps': 60, 'vcodec': 'h264', 'acodec': 'aac', 'filesize': 0, 'filesize_mb': 'Variable', 'has_audio': True},
+                    {'format_id': 'cobalt-720', 'ext': 'mp4', 'quality': 'HD (720p)', 'height': 720, 'resolution': '1280x720', 'fps': 30, 'vcodec': 'h264', 'acodec': 'aac', 'filesize': 0, 'filesize_mb': 'Variable', 'has_audio': True},
+                    {'format_id': 'cobalt-480', 'ext': 'mp4', 'quality': 'SD (480p)', 'height': 480, 'resolution': '854x480', 'fps': 30, 'vcodec': 'h264', 'acodec': 'aac', 'filesize': 0, 'filesize_mb': 'Variable', 'has_audio': True},
+                    {'format_id': 'cobalt-360', 'ext': 'mp4', 'quality': 'Baja (360p)', 'height': 360, 'resolution': '640x360', 'fps': 30, 'vcodec': 'h264', 'acodec': 'aac', 'filesize': 0, 'filesize_mb': 'Variable', 'has_audio': True},
+                ]
+                
+                audio_formats = [
+                    {'format_id': 'cobalt-audio', 'ext': 'm4a', 'abr': 128, 'abr_text': 'Mejor Calidad', 'acodec': 'aac', 'filesize': 0, 'filesize_mb': 'Variable'},
+                ]
+                
+                return jsonify({
+                    'title': title,
+                    'duration': duration,
+                    'thumbnail': thumbnail,
+                    'formats': formats,
+                    'audio_formats': audio_formats,
+                    'platform': 'youtube-cobalt'
+                })
+                
+            except Exception as e:
+                print(f"[ERROR] Fallo Cobalt API: {e}")
+                return jsonify({'error': f'Error al obtener información del video: {str(e)}'}), 500
+        
         # Configuración base universal para todas las plataformas
         ydl_opts = {
             'quiet': False,
@@ -183,7 +316,7 @@ def get_formats():
         }
         
         # Optimizaciones específicas por plataforma
-        if is_youtube:
+        if False:  # Ya no usamos yt-dlp para YouTube
             # Usar cliente web con cookies para evitar bloqueos de bot
             ydl_opts['extractor_args'] = {
                 'youtube': {
@@ -455,6 +588,107 @@ def download():
         # Generar ID único para esta descarga
         download_id = str(uuid.uuid4())
         
+        # Detectar si es YouTube y usar Cobalt API
+        is_youtube = 'youtube.com' in url or 'youtu.be' in url
+        
+        if is_youtube:
+            print(f"[INFO] YouTube detectado - usando Cobalt API para descarga")
+            
+            try:
+                if download_type == 'audio':
+                    # Descargar solo audio con Cobalt
+                    cobalt_url = download_with_cobalt_audio(url)
+                    if not cobalt_url:
+                        return jsonify({'error': 'No se pudo obtener el audio de YouTube. Intenta de nuevo.'}), 500
+                    
+                    # Descargar el archivo desde Cobalt
+                    print(f"[COBALT] Descargando audio desde: {cobalt_url[:50]}...")
+                    audio_response = requests.get(cobalt_url, stream=True, timeout=60)
+                    
+                    if audio_response.status_code != 200:
+                        return jsonify({'error': f'Error al descargar audio: HTTP {audio_response.status_code}'}), 500
+                    
+                    # Guardar archivo
+                    file_extension = output_format if output_format in ['mp3', 'wav', 'ogg'] else 'm4a'
+                    output_filename = f"{download_id}.{file_extension}"
+                    output_path = os.path.join(DOWNLOAD_FOLDER, output_filename)
+                    
+                    with open(output_path, 'wb') as f:
+                        for chunk in audio_response.iter_content(chunk_size=8192):
+                            if chunk:
+                                f.write(chunk)
+                    
+                    print(f"[COBALT] ✓ Audio guardado: {output_filename}")
+                    
+                    return jsonify({
+                        'success': True,
+                        'download_id': download_id,
+                        'filename': output_filename
+                    })
+                    
+                else:
+                    # Descargar video con Cobalt
+                    # Mapear format_id a calidad de Cobalt
+                    quality_map = {
+                        'cobalt-max': 'max',
+                        'cobalt-1440': '1440',
+                        'cobalt-1080': '1080',
+                        'cobalt-720': '720',
+                        'cobalt-480': '480',
+                        'cobalt-360': '360'
+                    }
+                    quality = quality_map.get(format_id, 'max')
+                    
+                    cobalt_url = download_with_cobalt(url, quality)
+                    if not cobalt_url:
+                        return jsonify({'error': f'No se pudo obtener el video en calidad {quality}. Intenta con otra calidad.'}), 500
+                    
+                    # Descargar el archivo desde Cobalt
+                    print(f"[COBALT] Descargando video {quality} desde: {cobalt_url[:50]}...")
+                    video_response = requests.get(cobalt_url, stream=True, timeout=120)
+                    
+                    if video_response.status_code != 200:
+                        return jsonify({'error': f'Error al descargar video: HTTP {video_response.status_code}'}), 500
+                    
+                    # Guardar archivo
+                    file_extension = output_format if output_format in ['mp4', 'webm', 'mkv'] else 'mp4'
+                    output_filename = f"{download_id}.{file_extension}"
+                    output_path = os.path.join(DOWNLOAD_FOLDER, output_filename)
+                    
+                    total_size = int(video_response.headers.get('content-length', 0))
+                    downloaded = 0
+                    
+                    with open(output_path, 'wb') as f:
+                        for chunk in video_response.iter_content(chunk_size=8192):
+                            if chunk:
+                                f.write(chunk)
+                                downloaded += len(chunk)
+                                
+                                # Actualizar progreso
+                                if total_size > 0:
+                                    download_progress[download_id] = {
+                                        'status': 'downloading',
+                                        'downloaded': downloaded,
+                                        'total': total_size,
+                                        'percentage': int((downloaded / total_size) * 100)
+                                    }
+                    
+                    download_progress[download_id] = {'status': 'finished', 'filename': output_filename}
+                    print(f"[COBALT] ✓ Video guardado: {output_filename}")
+                    
+                    return jsonify({
+                        'success': True,
+                        'download_id': download_id,
+                        'filename': output_filename
+                    })
+                    
+            except Exception as e:
+                print(f"[ERROR COBALT] {str(e)}")
+                import traceback
+                traceback.print_exc()
+                return jsonify({'error': f'Error al descargar con Cobalt API: {str(e)}'}), 500
+        
+        # Para otras plataformas, usar yt-dlp como antes
         def progress_hook(d):
             if d['status'] == 'downloading':
                 download_progress[download_id] = {
@@ -477,40 +711,6 @@ def download():
             'no_warnings': True,
             'no_check_certificate': True,
         }
-        
-        # Detectar si es YouTube
-        is_youtube = 'youtube.com' in url or 'youtu.be' in url
-        
-        if is_youtube:
-            # Usar web client con cookies
-            ydl_opts['extractor_args'] = {
-                'youtube': {
-                    'player_client': ['web'],
-                }
-            }
-            
-            # Usar cookies - necesarias para evitar bloqueo de bot
-            if COOKIES_FILE_WRITABLE and os.path.exists(COOKIES_FILE_WRITABLE) and os.path.getsize(COOKIES_FILE_WRITABLE) > 0:
-                ydl_opts['cookiefile'] = COOKIES_FILE_WRITABLE
-                print("✓ [Descarga] Cookies de YouTube cargadas desde archivo")
-            else:
-                print("⚠ [Descarga] Sin cookies - puede fallar")
-            
-            # Solo intentar cookies del navegador en local, no en servidor
-            if not os.path.exists('/opt/render'):
-                try:
-                    ydl_opts['cookiesfrombrowser'] = ('chrome',)
-                    print("✓ [Descarga] Usando cookies de Chrome automáticamente")
-                except:
-                    try:
-                        ydl_opts['cookiesfrombrowser'] = ('firefox',)
-                        print("✓ [Descarga] Usando cookies de Firefox automáticamente")
-                    except:
-                        try:
-                            ydl_opts['cookiesfrombrowser'] = ('edge',)
-                            print("✓ [Descarga] Usando cookies de Edge automáticamente")
-                        except:
-                            print("⚠ [Descarga] No se pudieron cargar cookies del navegador")
         
         if download_type == 'audio':
             # Descargar solo audio - estrategia múltiple
@@ -677,7 +877,7 @@ def get_progress(download_id):
 def cookies_status():
     """Verifica si hay cookies disponibles"""
     return jsonify({
-        'has_cookies': os.path.exists(COOKIES_FILE),
+        'has_cookies': os.path.exists(COOKIES_FILE) if COOKIES_FILE else False,
         'cookies_file': COOKIES_FILE
     })
 
@@ -698,7 +898,7 @@ def get_trim_info():
             'skip_download': True,
         }
         
-        if os.path.exists(COOKIES_FILE) and os.path.getsize(COOKIES_FILE) > 0:
+        if COOKIES_FILE and os.path.exists(COOKIES_FILE) and os.path.getsize(COOKIES_FILE) > 0:
             ydl_opts['cookiefile'] = COOKIES_FILE
         
         print(f"[TRIM INFO] Obteniendo información del video: {url}")
@@ -803,7 +1003,7 @@ def trim_video():
             'no_warnings': True,
         }
         
-        if os.path.exists(COOKIES_FILE) and os.path.getsize(COOKIES_FILE) > 0:
+        if COOKIES_FILE and os.path.exists(COOKIES_FILE) and os.path.getsize(COOKIES_FILE) > 0:
             ydl_opts['cookiefile'] = COOKIES_FILE
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -1151,7 +1351,7 @@ def download_converted(download_id):
 
 if __name__ == '__main__':
     # Verificar si hay cookies disponibles
-    if os.path.exists(COOKIES_FILE) and os.path.getsize(COOKIES_FILE) > 0:
+    if COOKIES_FILE and os.path.exists(COOKIES_FILE) and os.path.getsize(COOKIES_FILE) > 0:
         print("✓ Cookies de YouTube cargadas desde:", COOKIES_FILE)
     else:
         print("⚠ No se encontraron cookies. Para evitar bloqueos de YouTube:")
