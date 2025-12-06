@@ -384,18 +384,13 @@ def get_formats():
                 try:
                     user_agent = get_random_user_agent()
                     
+                    # Opciones SIMPLIFICADAS sin restricciones de player_client
                     ydl_opts = {
                         'quiet': True,
                         'no_warnings': True,
                         'skip_download': True,
-                        'extract_flat': False,  # Necesario para obtener formatos
+                        'listformats': True,  # Forzar listado completo de formatos
                         'socket_timeout': 30,
-                        'format': 'bestvideo*+bestaudio/best',  # * permite más formatos
-                        'extractor_args': {
-                            'youtube': {
-                                'player_client': ['android_creator', 'web'],  # android_creator tiene más formatos
-                            }
-                        },
                         'http_headers': {
                             'User-Agent': user_agent,
                             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -416,9 +411,18 @@ def get_formats():
                             secs = duration % 60
                             print(f"[COBALT] ✓ Duración: {duration}s ({mins}:{secs:02d})")
                         
-                        # Obtener formatos disponibles
+                        # Obtener TODOS los formatos disponibles (incluye 4K, 8K, etc.)
                         yt_formats = info.get('formats', [])
-                        print(f"[COBALT] Total formatos: {len(yt_formats)}")
+                        print(f"[COBALT] Total formatos encontrados: {len(yt_formats)}")
+                        
+                        # Debug: mostrar todas las alturas únicas detectadas
+                        all_heights = set()
+                        for fmt in yt_formats:
+                            height = fmt.get('height')
+                            vcodec = fmt.get('vcodec', 'none')
+                            if height and vcodec != 'none':
+                                all_heights.add(height)
+                        print(f"[COBALT] 🔍 DEBUG - Todas las alturas: {sorted(all_heights, reverse=True)}")
                         
                         # Agrupar por resolución (tomar el mejor de cada altura)
                         for fmt in yt_formats:
