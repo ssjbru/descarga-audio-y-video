@@ -787,23 +787,38 @@ def download():
                         # Si Cobalt falla, usar yt-dlp como respaldo
                         print(f"[INFO] Cobalt audio falló, usando yt-dlp...")
                         try:
+                            # Configuración optimizada para audio
                             ydl_opts = {
                                 'format': 'bestaudio/best',
                                 'outtmpl': os.path.join(DOWNLOAD_FOLDER, f'{download_id}.%(ext)s'),
-                                'quiet': True,
-                                'no_warnings': True,
+                                'quiet': False,
+                                'no_warnings': False,
+                                'extract_flat': False,
+                                'socket_timeout': 30,
+                                'retries': 3,
                                 'postprocessors': [{
                                     'key': 'FFmpegExtractAudio',
                                     'preferredcodec': output_format if output_format in ['mp3', 'wav', 'ogg'] else 'm4a',
                                 }],
+                                'http_headers': {
+                                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                                },
                             }
+                            
                             if COOKIES_FILE and os.path.exists(COOKIES_FILE):
+                                print(f"[YT-DLP] Usando cookies desde: {COOKIES_FILE}")
                                 ydl_opts['cookiefile'] = COOKIES_FILE
+                            else:
+                                print(f"[YT-DLP] Sin cookies, continuando sin ellas")
+                            
+                            print(f"[YT-DLP] Descargando audio...")
                             
                             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                                 info = ydl.extract_info(url, download=True)
                                 file_extension = output_format if output_format in ['mp3', 'wav', 'ogg'] else 'm4a'
                                 output_filename = f"{download_id}.{file_extension}"
+                                
+                                print(f"[YT-DLP] ✓ Audio descargado: {output_filename}")
                                 
                                 return jsonify({
                                     'success': True,
@@ -811,8 +826,10 @@ def download():
                                     'filename': output_filename
                                 })
                         except Exception as e:
-                            print(f"[ERROR] yt-dlp audio también falló: {e}")
-                            return jsonify({'error': 'No se pudo descargar el audio. Intenta de nuevo.'}), 500
+                            print(f"[ERROR] yt-dlp audio falló: {e}")
+                            import traceback
+                            traceback.print_exc()
+                            return jsonify({'error': f'No se pudo descargar el audio. Error: {str(e)}'}), 500
                     
                     # Descargar el archivo desde Cobalt
                     print(f"[COBALT] Descargando audio desde: {cobalt_url[:50]}...")
@@ -857,19 +874,36 @@ def download():
                         # Si Cobalt falla, intentar con yt-dlp como respaldo
                         print(f"[INFO] Cobalt falló, intentando con yt-dlp...")
                         try:
+                            # Configuración optimizada de yt-dlp para YouTube
                             ydl_opts = {
                                 'format': f'bestvideo[height<={quality if quality != "max" else "2160"}]+bestaudio/best',
                                 'outtmpl': os.path.join(DOWNLOAD_FOLDER, f'{download_id}.%(ext)s'),
-                                'quiet': True,
-                                'no_warnings': True,
+                                'quiet': False,  # Mostrar logs para debug
+                                'no_warnings': False,
+                                'extract_flat': False,
+                                'socket_timeout': 30,
+                                'retries': 3,
+                                'fragment_retries': 3,
+                                'http_headers': {
+                                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                                },
                             }
+                            
+                            # Solo usar cookies si existen
                             if COOKIES_FILE and os.path.exists(COOKIES_FILE):
+                                print(f"[YT-DLP] Usando cookies desde: {COOKIES_FILE}")
                                 ydl_opts['cookiefile'] = COOKIES_FILE
+                            else:
+                                print(f"[YT-DLP] Sin cookies, continuando sin ellas")
+                            
+                            print(f"[YT-DLP] Descargando video con formato: {ydl_opts['format']}")
                             
                             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                                 info = ydl.extract_info(url, download=True)
                                 output_filename = ydl.prepare_filename(info)
                                 output_filename = os.path.basename(output_filename)
+                                
+                                print(f"[YT-DLP] ✓ Video descargado: {output_filename}")
                                 
                                 return jsonify({
                                     'success': True,
@@ -877,8 +911,10 @@ def download():
                                     'filename': output_filename
                                 })
                         except Exception as e:
-                            print(f"[ERROR] yt-dlp también falló: {e}")
-                            return jsonify({'error': f'No se pudo descargar el video. Cobalt y yt-dlp fallaron.'}), 500
+                            print(f"[ERROR] yt-dlp falló: {e}")
+                            import traceback
+                            traceback.print_exc()
+                            return jsonify({'error': f'No se pudo descargar el video. Error: {str(e)}'}), 500
                     
                     # Descargar el archivo desde Cobalt
                     print(f"[COBALT] Descargando video {quality} desde: {cobalt_url[:50]}...")
