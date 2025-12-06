@@ -12,6 +12,7 @@ import tempfile
 import requests
 import re
 import random
+from external_4k_api import merge_with_external_formats
 
 app = Flask(__name__)
 
@@ -384,10 +385,10 @@ def get_formats():
                 try:
                     user_agent = get_random_user_agent()
                     
-                    # Configuración sin restricciones para ver todos los formatos
+                    # Configuración optimizada con Node.js para resolver challenges de YouTube
                     ydl_opts = {
-                        'quiet': False,  # Ver mensajes de yt-dlp para debugging
-                        'no_warnings': False,
+                        'quiet': True,
+                        'no_warnings': True,
                         'skip_download': True,
                         'socket_timeout': 30,
                         'http_headers': {
@@ -399,6 +400,18 @@ def get_formats():
                     }
                     if COOKIES_FILE and os.path.exists(COOKIES_FILE):
                         ydl_opts['cookiefile'] = COOKIES_FILE
+                    
+                    # Verificar si Node.js está disponible para challenges
+                    try:
+                        node_check = subprocess.run(['node', '--version'], 
+                                                   capture_output=True, 
+                                                   timeout=2)
+                        if node_check.returncode == 0:
+                            print(f"[COBALT] ✓ Node.js disponible: {node_check.stdout.decode().strip()}")
+                        else:
+                            print(f"[COBALT] ⚠ Node.js no disponible - formatos 4K pueden estar limitados")
+                    except:
+                        print(f"[COBALT] ⚠ Node.js no instalado - usando solo APIs externas para 4K")
                     
                     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                         info = ydl.extract_info(url, download=False)
@@ -421,7 +434,13 @@ def get_formats():
                             vcodec = fmt.get('vcodec', 'none')
                             if height and vcodec != 'none':
                                 all_heights.add(height)
-                        print(f"[COBALT] 🔍 DEBUG - Todas las alturas: {sorted(all_heights, reverse=True)}")
+                        print(f"[COBALT] 🔍 DEBUG - Todas las alturas yt-dlp: {sorted(all_heights, reverse=True)}")
+                        
+                        # ESTRATEGIA HÍBRIDA: Si yt-dlp no encuentra 4K, buscar con APIs externas
+                        if all_heights and max(all_heights) < 2160:
+                            print(f"[COBALT] 🔄 yt-dlp solo encontró hasta {max(all_heights)}p, intentando APIs externas para 4K...")
+                            yt_formats = merge_with_external_formats(yt_formats, video_id)
+                            print(f"[COBALT] ✓ Total formatos después de merge: {len(yt_formats)}")
                         
                         # Agrupar por resolución (tomar el mejor de cada altura)
                         for fmt in yt_formats:
