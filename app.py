@@ -271,24 +271,34 @@ def get_formats():
                 
                 print(f"[COBALT] Obteniendo información del video {video_id}...")
                 
-                # Usar YouTube oEmbed API (pública, sin autenticación)
+                # 1. Obtener título y autor desde YouTube oEmbed API (pública, sin autenticación)
+                title = f"Video de YouTube ({video_id})"
+                author = "YouTube"
                 try:
                     oembed_url = f"https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={video_id}&format=json"
                     oembed_response = requests.get(oembed_url, timeout=10)
                     if oembed_response.status_code == 200:
                         oembed_data = oembed_response.json()
-                        title = oembed_data.get('title', f"Video de YouTube ({video_id})")
-                        author = oembed_data.get('author_name', 'YouTube')
-                        print(f"[COBALT] ✓ Título obtenido: {title}")
+                        title = oembed_data.get('title', title)
+                        author = oembed_data.get('author_name', author)
+                        print(f"[COBALT] ✓ Título: {title}")
                         print(f"[COBALT] ✓ Autor: {author}")
-                    else:
-                        title = f"Video de YouTube ({video_id})"
-                        print(f"[COBALT] ⚠ oEmbed falló, usando título genérico")
                 except Exception as e:
-                    title = f"Video de YouTube ({video_id})"
-                    print(f"[COBALT] ⚠ Error en oEmbed: {e}, usando título genérico")
+                    print(f"[COBALT] ⚠ Error en oEmbed: {e}")
                 
-                duration = 0  # oEmbed no proporciona duración, pero no es crítico
+                # 2. Obtener duración desde Invidious API (instancia pública)
+                duration = 0
+                try:
+                    # Usar instancia pública de Invidious
+                    invidious_url = f"https://inv.nadeko.net/api/v1/videos/{video_id}"
+                    invidious_response = requests.get(invidious_url, timeout=10)
+                    if invidious_response.status_code == 200:
+                        invidious_data = invidious_response.json()
+                        duration = invidious_data.get('lengthSeconds', 0)
+                        print(f"[COBALT] ✓ Duración: {duration}s ({duration//60}:{duration%60:02d})")
+                except Exception as e:
+                    print(f"[COBALT] ⚠ Error obteniendo duración: {e}")
+                
                 thumbnail = f"https://i.ytimg.com/vi/{video_id}/maxresdefault.jpg"
                 
                 # Ofrecer calidades de Cobalt
@@ -305,7 +315,7 @@ def get_formats():
                     {'format_id': 'cobalt-audio', 'ext': 'm4a', 'abr': 128, 'abr_text': 'Mejor Calidad', 'acodec': 'aac', 'filesize': 0, 'filesize_mb': 'Variable'},
                 ]
                 
-                print(f"[COBALT] ✓ Formatos preparados para: {title}")
+                print(f"[COBALT] ✓ Todo listo para: {title}")
                 
                 return jsonify({
                     'title': title,
