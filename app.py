@@ -413,29 +413,35 @@ def get_formats():
                 
                 thumbnail = f"https://i.ytimg.com/vi/{video_id}/maxresdefault.jpg"
                 
-                # Intentar obtener tamaños reales usando yt-dlp (sin descargar)
-                print(f"[COBALT] Intentando obtener tamaños reales con yt-dlp...")
+                # Obtener tamaños estimados basados en bitrates reales de YouTube
+                print(f"[COBALT] Calculando tamaños estimados con bitrates de YouTube...")
                 formats_with_sizes = []
                 try:
                     ydl_opts = {
-                        'quiet': False,  # Activar logs para debug
-                        'no_warnings': False,
+                        'quiet': True,
+                        'no_warnings': True,
                         'skip_download': True,
                         'socket_timeout': 20,
                         'extract_flat': False,
                     }
                     if COOKIES_FILE and os.path.exists(COOKIES_FILE):
                         ydl_opts['cookiefile'] = COOKIES_FILE
-                        print(f"[COBALT] Usando cookies: {COOKIES_FILE}")
                     
                     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                        print(f"[COBALT] Extrayendo información de formatos...")
                         info = ydl.extract_info(url, download=False)
                         yt_formats = info.get('formats', [])
                         
-                        print(f"[COBALT] Total de formatos encontrados: {len(yt_formats)}")
+                        # Bitrates típicos de YouTube (en Mbps) - valores conservadores
+                        # Basados en análisis de descargas reales
+                        bitrate_estimates = {
+                            2160: {'video': 12.0, 'audio': 0.128},  # 4K: ~12 Mbps video
+                            1440: {'video': 8.0, 'audio': 0.128},   # 2K: ~8 Mbps video  
+                            1080: {'video': 5.0, 'audio': 0.128},   # 1080p: ~5 Mbps video
+                            720: {'video': 2.5, 'audio': 0.128},    # 720p: ~2.5 Mbps video
+                            480: {'video': 1.0, 'audio': 0.128},    # 480p: ~1 Mbps video
+                            360: {'video': 0.5, 'audio': 0.128},    # 360p: ~0.5 Mbps video
+                        }
                         
-                        # Mapear calidades a formatos de YouTube
                         quality_map = {
                             2160: {'format_id': 'cobalt-max', 'quality': '4K (2160p)'},
                             1440: {'format_id': 'cobalt-1440', 'quality': '2K (1440p)'},
@@ -446,58 +452,51 @@ def get_formats():
                         }
                         
                         for target_height, target_info in quality_map.items():
-                            # Buscar formatos con esta resolución
-                            matching_formats = []
+                            # Buscar formato con esta resolución
+                            best_format = None
                             for fmt in yt_formats:
-                                height = fmt.get('height', 0)
-                                has_video = fmt.get('vcodec', 'none') != 'none'
-                                has_audio = fmt.get('acodec', 'none') != 'none'
-                                filesize = fmt.get('filesize') or fmt.get('filesize_approx', 0)
-                                
-                                if height == target_height and has_video:
-                                    matching_formats.append({
-                                        'format': fmt,
-                                        'has_audio': has_audio,
-                                        'filesize': filesize,
-                                        'priority': 2 if (has_video and has_audio) else 1
-                                    })
+                                if fmt.get('height') == target_height and fmt.get('vcodec', 'none') != 'none':
+                                    best_format = fmt
+                                    break
                             
-                            if matching_formats:
-                                # Ordenar: primero con audio, luego por tamaño
-                                matching_formats.sort(key=lambda x: (x['priority'], x['filesize']), reverse=True)
-                                best = matching_formats[0]['format']
-                                filesize = matching_formats[0]['filesize']
+                            if best_format:
+                                # Intentar tamaño reportado primero
+                                filesize = best_format.get('filesize') or best_format.get('filesize_approx', 0)
                                 
-                                if filesize > 0:
-                                    filesize_mb = round(filesize / (1024 * 1024), 2)
-                                    print(f"[COBALT] ✓ {target_info['quality']}: {filesize_mb} MB")
+                                # Si no hay tamaño reportado, estimar con bitrate
+                                if filesize == 0 and duration > 0:
+                                    bitrates = bitrate_estimates.get(target_height, {'video': 1.0, 'audio': 0.128})
+                                    total_bitrate_mbps = bitrates['video'] + bitrates['audio']
+                                    # Tamaño = bitrate (Mbps) × duración (s) / 8 (bits a bytes)
+                                    filesize = int((total_bitrate_mbps * duration * 1000000) / 8)
+                                
+                                filesize_mb = round(filesize / (1024 * 1024), 2) if filesize > 0 else 0
+                                
+                                if filesize_mb > 0:
+                                    print(f"[COBALT] ✓ {target_info['quality']}: ~{filesize_mb} MB")
                                 else:
                                     filesize_mb = 'Variable'
-                                    print(f"[COBALT] ⚠ {target_info['quality']}: sin tamaño exacto")
+                                    print(f"[COBALT] ⚠ {target_info['quality']}: sin estimación")
                                 
                                 formats_with_sizes.append({
                                     'format_id': target_info['format_id'],
-                                    'ext': best.get('ext', 'mp4'),
+                                    'ext': best_format.get('ext', 'mp4'),
                                     'quality': target_info['quality'],
                                     'height': target_height,
-                                    'resolution': f"{best.get('width', 0)}x{target_height}",
-                                    'fps': best.get('fps', 30),
-                                    'vcodec': best.get('vcodec', 'h264'),
-                                    'acodec': best.get('acodec', 'aac'),
+                                    'resolution': f"{best_format.get('width', 0)}x{target_height}",
+                                    'fps': best_format.get('fps', 30),
+                                    'vcodec': best_format.get('vcodec', 'h264'),
+                                    'acodec': best_format.get('acodec', 'aac'),
                                     'filesize': filesize,
                                     'filesize_mb': filesize_mb,
-                                    'has_audio': matching_formats[0]['has_audio']
+                                    'has_audio': True
                                 })
                     
                     if formats_with_sizes:
-                        print(f"[COBALT] ✓ Tamaños obtenidos para {len(formats_with_sizes)} calidades")
-                    else:
-                        print(f"[COBALT] ⚠ No se encontraron formatos con tamaños")
+                        print(f"[COBALT] ✓ Estimaciones calculadas para {len(formats_with_sizes)} calidades")
                         
                 except Exception as e:
-                    print(f"[COBALT] ⚠ Error obteniendo tamaños: {e}")
-                    import traceback
-                    traceback.print_exc()
+                    print(f"[COBALT] ⚠ Error calculando tamaños: {e}")
                 
                 # Si no se obtuvieron tamaños reales, usar formatos genéricos
                 if not formats_with_sizes:
@@ -511,8 +510,19 @@ def get_formats():
                         {'format_id': 'cobalt-360', 'ext': 'mp4', 'quality': 'Baja (360p)', 'height': 360, 'resolution': '640x360', 'fps': 30, 'vcodec': 'h264', 'acodec': 'aac', 'filesize': 0, 'filesize_mb': 'Variable', 'has_audio': True},
                     ]
                 
+                # Calcular tamaño de audio
+                if duration > 0:
+                    # Audio típico: 128 kbps AAC
+                    audio_bitrate_kbps = 128
+                    audio_filesize = int((audio_bitrate_kbps * duration * 1000) / 8)
+                    audio_filesize_mb = round(audio_filesize / (1024 * 1024), 2)
+                    print(f"[COBALT] ✓ Audio: ~{audio_filesize_mb} MB")
+                else:
+                    audio_filesize = 0
+                    audio_filesize_mb = 'Variable'
+                
                 audio_formats = [
-                    {'format_id': 'cobalt-audio', 'ext': 'm4a', 'abr': 128, 'abr_text': 'Mejor Calidad', 'acodec': 'aac', 'filesize': 0, 'filesize_mb': 'Variable'},
+                    {'format_id': 'cobalt-audio', 'ext': 'm4a', 'abr': 128, 'abr_text': 'Mejor Calidad', 'acodec': 'aac', 'filesize': audio_filesize, 'filesize_mb': audio_filesize_mb},
                 ]
                 
                 print(f"[COBALT] ✓ Todo listo para: {title}")
