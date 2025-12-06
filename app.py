@@ -352,7 +352,13 @@ def get_formats():
                 if duration == 0:
                     print(f"[COBALT] ⚠ No se pudo obtener duración de ninguna fuente")
                 
-                print(f"[COBALT] 📊 Duración final: {duration}s ({duration//60 if duration > 0 else 0}:{duration%60:02d if duration > 0 else 0})")
+                # Formatear duración correctamente
+                if duration > 0:
+                    mins = duration // 60
+                    secs = duration % 60
+                    print(f"[COBALT] 📊 Duración final: {duration}s ({mins}:{secs:02d})")
+                else:
+                    print(f"[COBALT] 📊 Duración final: 0s (0:00)")
                 
                 thumbnail = f"https://i.ytimg.com/vi/{video_id}/maxresdefault.jpg"
                 
