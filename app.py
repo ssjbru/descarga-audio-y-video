@@ -71,19 +71,20 @@ os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 # Diccionario para almacenar el progreso de las descargas
 download_progress = {}
 
-# Configuración de Cobalt API v9 (la v7 fue cerrada en nov 2024)
-COBALT_API_URL = "https://api.cobalt.tools"  # Nueva API v9 (sin trailing slash)
-COBALT_API_BACKUP = "https://co.wuk.sh"  # Endpoint alternativo v9
+# Configuración de Cobalt API v9
+# Instancias públicas que NO requieren autenticación
+COBALT_INSTANCES = [
+    "https://cobalt-api.kwiatekmiki.com",
+    "https://api.cobalt.tools",  # Requiere JWT pero lo dejamos como backup
+]
 
 def download_with_cobalt(url, quality='max'):
     """
     Descarga videos usando Cobalt API v9 (para YouTube principalmente)
     Retorna la URL de descarga directa o None si falla
     """
-    # Intentar con ambos endpoints
-    endpoints = [COBALT_API_URL, COBALT_API_BACKUP]
-    
-    for endpoint in endpoints:
+    # Intentar con todas las instancias disponibles
+    for endpoint in COBALT_INSTANCES:
         try:
             print(f"[COBALT v9] Intentando con endpoint: {endpoint}")
             print(f"[COBALT v9] URL del video: {url}")
@@ -156,10 +157,8 @@ def download_with_cobalt_audio(url):
     """
     Descarga solo audio usando Cobalt API v9
     """
-    # Intentar con ambos endpoints
-    endpoints = [COBALT_API_URL, COBALT_API_BACKUP]
-    
-    for endpoint in endpoints:
+    # Intentar con todas las instancias disponibles
+    for endpoint in COBALT_INSTANCES:
         try:
             print(f"[COBALT v9] Descargando audio con endpoint: {endpoint}")
             
@@ -785,7 +784,35 @@ def download():
                     # Descargar solo audio con Cobalt
                     cobalt_url = download_with_cobalt_audio(url)
                     if not cobalt_url:
-                        return jsonify({'error': 'No se pudo obtener el audio de YouTube. Intenta de nuevo.'}), 500
+                        # Si Cobalt falla, usar yt-dlp como respaldo
+                        print(f"[INFO] Cobalt audio falló, usando yt-dlp...")
+                        try:
+                            ydl_opts = {
+                                'format': 'bestaudio/best',
+                                'outtmpl': os.path.join(DOWNLOAD_FOLDER, f'{download_id}.%(ext)s'),
+                                'quiet': True,
+                                'no_warnings': True,
+                                'postprocessors': [{
+                                    'key': 'FFmpegExtractAudio',
+                                    'preferredcodec': output_format if output_format in ['mp3', 'wav', 'ogg'] else 'm4a',
+                                }],
+                            }
+                            if COOKIES_FILE and os.path.exists(COOKIES_FILE):
+                                ydl_opts['cookiefile'] = COOKIES_FILE
+                            
+                            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                                info = ydl.extract_info(url, download=True)
+                                file_extension = output_format if output_format in ['mp3', 'wav', 'ogg'] else 'm4a'
+                                output_filename = f"{download_id}.{file_extension}"
+                                
+                                return jsonify({
+                                    'success': True,
+                                    'download_id': download_id,
+                                    'filename': output_filename
+                                })
+                        except Exception as e:
+                            print(f"[ERROR] yt-dlp audio también falló: {e}")
+                            return jsonify({'error': 'No se pudo descargar el audio. Intenta de nuevo.'}), 500
                     
                     # Descargar el archivo desde Cobalt
                     print(f"[COBALT] Descargando audio desde: {cobalt_url[:50]}...")
@@ -827,7 +854,31 @@ def download():
                     
                     cobalt_url = download_with_cobalt(url, quality)
                     if not cobalt_url:
-                        return jsonify({'error': f'No se pudo obtener el video en calidad {quality}. Intenta con otra calidad.'}), 500
+                        # Si Cobalt falla, intentar con yt-dlp como respaldo
+                        print(f"[INFO] Cobalt falló, intentando con yt-dlp...")
+                        try:
+                            ydl_opts = {
+                                'format': f'bestvideo[height<={quality if quality != "max" else "2160"}]+bestaudio/best',
+                                'outtmpl': os.path.join(DOWNLOAD_FOLDER, f'{download_id}.%(ext)s'),
+                                'quiet': True,
+                                'no_warnings': True,
+                            }
+                            if COOKIES_FILE and os.path.exists(COOKIES_FILE):
+                                ydl_opts['cookiefile'] = COOKIES_FILE
+                            
+                            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                                info = ydl.extract_info(url, download=True)
+                                output_filename = ydl.prepare_filename(info)
+                                output_filename = os.path.basename(output_filename)
+                                
+                                return jsonify({
+                                    'success': True,
+                                    'download_id': download_id,
+                                    'filename': output_filename
+                                })
+                        except Exception as e:
+                            print(f"[ERROR] yt-dlp también falló: {e}")
+                            return jsonify({'error': f'No se pudo descargar el video. Cobalt y yt-dlp fallaron.'}), 500
                     
                     # Descargar el archivo desde Cobalt
                     print(f"[COBALT] Descargando video {quality} desde: {cobalt_url[:50]}...")
