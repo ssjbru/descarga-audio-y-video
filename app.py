@@ -269,36 +269,29 @@ def get_formats():
                 video_id_match = re.search(r'(?:v=|youtu\.be/)([a-zA-Z0-9_-]{11})', url)
                 video_id = video_id_match.group(1) if video_id_match else 'Video'
                 
-                print(f"[COBALT] Obteniendo información del video {video_id} desde Cobalt...")
+                print(f"[COBALT] Obteniendo información del video {video_id}...")
                 
-                # Hacer petición a Cobalt para obtener metadata
-                payload = {
-                    "url": url,
-                    "vQuality": "max"
-                }
-                headers = {
-                    "Accept": "application/json",
-                    "Content-Type": "application/json"
-                }
-                
+                # Usar YouTube oEmbed API (pública, sin autenticación)
                 try:
-                    response = requests.post(COBALT_API_URL, json=payload, headers=headers, timeout=15)
-                    if response.status_code == 200:
-                        data = response.json()
-                        # Cobalt puede devolver metadata en algunos casos
-                        title = data.get('title') or data.get('filename') or f"Video de YouTube ({video_id})"
+                    oembed_url = f"https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={video_id}&format=json"
+                    oembed_response = requests.get(oembed_url, timeout=10)
+                    if oembed_response.status_code == 200:
+                        oembed_data = oembed_response.json()
+                        title = oembed_data.get('title', f"Video de YouTube ({video_id})")
+                        author = oembed_data.get('author_name', 'YouTube')
                         print(f"[COBALT] ✓ Título obtenido: {title}")
+                        print(f"[COBALT] ✓ Autor: {author}")
                     else:
                         title = f"Video de YouTube ({video_id})"
-                        print(f"[COBALT] ⚠ No se pudo obtener título, usando genérico")
-                except:
+                        print(f"[COBALT] ⚠ oEmbed falló, usando título genérico")
+                except Exception as e:
                     title = f"Video de YouTube ({video_id})"
-                    print(f"[COBALT] ⚠ Error al consultar Cobalt, usando título genérico")
+                    print(f"[COBALT] ⚠ Error en oEmbed: {e}, usando título genérico")
                 
-                duration = 0  # Cobalt no proporciona duración en metadata
+                duration = 0  # oEmbed no proporciona duración, pero no es crítico
                 thumbnail = f"https://i.ytimg.com/vi/{video_id}/maxresdefault.jpg"
                 
-                # Ofrecer calidades de Cobalt (sin necesidad de yt-dlp)
+                # Ofrecer calidades de Cobalt
                 formats = [
                     {'format_id': 'cobalt-max', 'ext': 'mp4', 'quality': '4K (2160p)', 'height': 2160, 'resolution': '3840x2160', 'fps': 60, 'vcodec': 'h264', 'acodec': 'aac', 'filesize': 0, 'filesize_mb': 'Variable', 'has_audio': True},
                     {'format_id': 'cobalt-1440', 'ext': 'mp4', 'quality': '2K (1440p)', 'height': 1440, 'resolution': '2560x1440', 'fps': 60, 'vcodec': 'h264', 'acodec': 'aac', 'filesize': 0, 'filesize_mb': 'Variable', 'has_audio': True},
