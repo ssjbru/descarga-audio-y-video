@@ -286,33 +286,71 @@ def get_formats():
                 except Exception as e:
                     print(f"[COBALT] ⚠ Error en oEmbed: {e}")
                 
-                # 2. Obtener duración desde Invidious API (instancia pública)
+                # 2. Obtener duración desde múltiples instancias de Invidious (con respaldos)
                 duration = 0
-                try:
-                    # Usar instancia pública de Invidious
-                    invidious_url = f"https://inv.nadeko.net/api/v1/videos/{video_id}"
-                    invidious_response = requests.get(invidious_url, timeout=10)
-                    if invidious_response.status_code == 200:
-                        invidious_data = invidious_response.json()
-                        duration = invidious_data.get('lengthSeconds', 0)
-                        print(f"[COBALT] ✓ Duración: {duration}s ({duration//60}:{duration%60:02d})")
-                except Exception as e:
-                    print(f"[COBALT] ⚠ Error obteniendo duración: {e}")
+                invidious_instances = [
+                    f"https://inv.nadeko.net/api/v1/videos/{video_id}",
+                    f"https://invidious.jing.rocks/api/v1/videos/{video_id}",
+                    f"https://iv.nboeck.de/api/v1/videos/{video_id}",
+                    f"https://invidious.private.coffee/api/v1/videos/{video_id}",
+                ]
+                
+                for invidious_url in invidious_instances:
+                    try:
+                        print(f"[COBALT] Intentando {invidious_url.split('/')[2]}...")
+                        invidious_response = requests.get(invidious_url, timeout=8)
+                        if invidious_response.status_code == 200:
+                            invidious_data = invidious_response.json()
+                            duration = invidious_data.get('lengthSeconds', 0)
+                            if duration > 0:
+                                print(f"[COBALT] ✓ Duración: {duration}s ({duration//60}:{duration%60:02d})")
+                                break
+                    except Exception as e:
+                        print(f"[COBALT] ⚠ Instancia falló: {e}")
+                        continue
+                
+                if duration == 0:
+                    print(f"[COBALT] ⚠ No se pudo obtener duración, usando 0")
                 
                 thumbnail = f"https://i.ytimg.com/vi/{video_id}/maxresdefault.jpg"
                 
-                # Ofrecer calidades de Cobalt
+                # 3. Obtener tamaños aproximados basados en duración
+                # Estimaciones realistas basadas en bitrates típicos de YouTube
+                def estimate_size(duration_seconds, quality_height):
+                    if duration_seconds == 0:
+                        return "Variable"
+                    
+                    # Bitrates aproximados por calidad (kbps)
+                    bitrates = {
+                        2160: 45000,  # 4K ~45 Mbps
+                        1440: 16000,  # 2K ~16 Mbps
+                        1080: 8000,   # 1080p ~8 Mbps
+                        720: 5000,    # 720p ~5 Mbps
+                        480: 2500,    # 480p ~2.5 Mbps
+                        360: 1000     # 360p ~1 Mbps
+                    }
+                    
+                    bitrate = bitrates.get(quality_height, 5000)
+                    size_mb = (bitrate * duration_seconds) / (8 * 1024)  # Convertir a MB
+                    
+                    if size_mb < 1024:
+                        return f"~{int(size_mb)} MB"
+                    else:
+                        return f"~{size_mb/1024:.1f} GB"
+                
+                # Ofrecer calidades de Cobalt con tamaños estimados
                 formats = [
-                    {'format_id': 'cobalt-max', 'ext': 'mp4', 'quality': '4K (2160p)', 'height': 2160, 'resolution': '3840x2160', 'fps': 60, 'vcodec': 'h264', 'acodec': 'aac', 'filesize': 0, 'filesize_mb': 'Variable', 'has_audio': True},
-                    {'format_id': 'cobalt-1440', 'ext': 'mp4', 'quality': '2K (1440p)', 'height': 1440, 'resolution': '2560x1440', 'fps': 60, 'vcodec': 'h264', 'acodec': 'aac', 'filesize': 0, 'filesize_mb': 'Variable', 'has_audio': True},
-                    {'format_id': 'cobalt-1080', 'ext': 'mp4', 'quality': 'Full HD (1080p)', 'height': 1080, 'resolution': '1920x1080', 'fps': 60, 'vcodec': 'h264', 'acodec': 'aac', 'filesize': 0, 'filesize_mb': 'Variable', 'has_audio': True},
-                    {'format_id': 'cobalt-720', 'ext': 'mp4', 'quality': 'HD (720p)', 'height': 720, 'resolution': '1280x720', 'fps': 30, 'vcodec': 'h264', 'acodec': 'aac', 'filesize': 0, 'filesize_mb': 'Variable', 'has_audio': True},
-                    {'format_id': 'cobalt-480', 'ext': 'mp4', 'quality': 'SD (480p)', 'height': 480, 'resolution': '854x480', 'fps': 30, 'vcodec': 'h264', 'acodec': 'aac', 'filesize': 0, 'filesize_mb': 'Variable', 'has_audio': True},
-                    {'format_id': 'cobalt-360', 'ext': 'mp4', 'quality': 'Baja (360p)', 'height': 360, 'resolution': '640x360', 'fps': 30, 'vcodec': 'h264', 'acodec': 'aac', 'filesize': 0, 'filesize_mb': 'Variable', 'has_audio': True},
+                    {'format_id': 'cobalt-max', 'ext': 'mp4', 'quality': '4K (2160p)', 'height': 2160, 'resolution': '3840x2160', 'fps': 60, 'vcodec': 'h264', 'acodec': 'aac', 'filesize': 0, 'filesize_mb': estimate_size(duration, 2160), 'has_audio': True},
+                    {'format_id': 'cobalt-1440', 'ext': 'mp4', 'quality': '2K (1440p)', 'height': 1440, 'resolution': '2560x1440', 'fps': 60, 'vcodec': 'h264', 'acodec': 'aac', 'filesize': 0, 'filesize_mb': estimate_size(duration, 1440), 'has_audio': True},
+                    {'format_id': 'cobalt-1080', 'ext': 'mp4', 'quality': 'Full HD (1080p)', 'height': 1080, 'resolution': '1920x1080', 'fps': 60, 'vcodec': 'h264', 'acodec': 'aac', 'filesize': 0, 'filesize_mb': estimate_size(duration, 1080), 'has_audio': True},
+                    {'format_id': 'cobalt-720', 'ext': 'mp4', 'quality': 'HD (720p)', 'height': 720, 'resolution': '1280x720', 'fps': 30, 'vcodec': 'h264', 'acodec': 'aac', 'filesize': 0, 'filesize_mb': estimate_size(duration, 720), 'has_audio': True},
+                    {'format_id': 'cobalt-480', 'ext': 'mp4', 'quality': 'SD (480p)', 'height': 480, 'resolution': '854x480', 'fps': 30, 'vcodec': 'h264', 'acodec': 'aac', 'filesize': 0, 'filesize_mb': estimate_size(duration, 480), 'has_audio': True},
+                    {'format_id': 'cobalt-360', 'ext': 'mp4', 'quality': 'Baja (360p)', 'height': 360, 'resolution': '640x360', 'fps': 30, 'vcodec': 'h264', 'acodec': 'aac', 'filesize': 0, 'filesize_mb': estimate_size(duration, 360), 'has_audio': True},
                 ]
                 
+                audio_size = estimate_size(duration, 128) if duration > 0 else "Variable"
                 audio_formats = [
-                    {'format_id': 'cobalt-audio', 'ext': 'm4a', 'abr': 128, 'abr_text': 'Mejor Calidad', 'acodec': 'aac', 'filesize': 0, 'filesize_mb': 'Variable'},
+                    {'format_id': 'cobalt-audio', 'ext': 'm4a', 'abr': 128, 'abr_text': 'Mejor Calidad', 'acodec': 'aac', 'filesize': 0, 'filesize_mb': audio_size},
                 ]
                 
                 print(f"[COBALT] ✓ Todo listo para: {title}")
