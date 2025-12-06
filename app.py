@@ -413,61 +413,96 @@ def get_formats():
                 
                 thumbnail = f"https://i.ytimg.com/vi/{video_id}/maxresdefault.jpg"
                 
-                # ========== VERSIÓN 2.0: TODAS LAS CALIDADES SIEMPRE ==========
-                print(f"[COBALT] 🎬 MOSTRANDO TODAS LAS CALIDADES (4K, 2K, 1080p, 720p, 480p, 360p)")
-                print(f"[COBALT] Calculando tamaños estimados con bitrates de YouTube...")
+                # Obtener formatos reales disponibles con yt-dlp (modo rápido)
+                print(f"[COBALT] Detectando calidades disponibles...")
                 formats_with_sizes = []
+                available_formats = {}
                 
-                # Bitrates típicos de YouTube (en Mbps) - valores conservadores
+                try:
+                    ydl_opts = {
+                        'quiet': True,
+                        'no_warnings': True,
+                        'skip_download': True,
+                        'extract_flat': False,
+                        'socket_timeout': 15,
+                    }
+                    if COOKIES_FILE and os.path.exists(COOKIES_FILE):
+                        ydl_opts['cookiefile'] = COOKIES_FILE
+                    
+                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                        info = ydl.extract_info(url, download=False)
+                        yt_formats = info.get('formats', [])
+                        
+                        # Encontrar formatos con video (agrupados por altura)
+                        for fmt in yt_formats:
+                            height = fmt.get('height')
+                            vcodec = fmt.get('vcodec', 'none')
+                            if height and vcodec != 'none':
+                                if height not in available_formats or fmt.get('filesize', 0) > available_formats[height].get('filesize', 0):
+                                    available_formats[height] = fmt
+                        
+                        print(f"[COBALT] Calidades detectadas: {sorted(available_formats.keys(), reverse=True)}")
+                except Exception as e:
+                    print(f"[COBALT] ⚠ No se pudo detectar calidades: {e}")
+                    # Si falla, asumir calidades comunes
+                    available_formats = {1080: {}, 720: {}, 480: {}, 360: {}}
+                
+                # Bitrates típicos de YouTube para estimaciones
                 bitrate_estimates = {
-                    2160: {'video': 12.0, 'audio': 0.128},  # 4K: ~12 Mbps video
-                    1440: {'video': 8.0, 'audio': 0.128},   # 2K: ~8 Mbps video  
-                    1080: {'video': 5.0, 'audio': 0.128},   # 1080p: ~5 Mbps video
-                    720: {'video': 2.5, 'audio': 0.128},    # 720p: ~2.5 Mbps video
-                    480: {'video': 1.0, 'audio': 0.128},    # 480p: ~1 Mbps video
-                    360: {'video': 0.5, 'audio': 0.128},    # 360p: ~0.5 Mbps video
+                    2160: {'video': 12.0, 'audio': 0.128},
+                    1440: {'video': 8.0, 'audio': 0.128},
+                    1080: {'video': 5.0, 'audio': 0.128},
+                    720: {'video': 2.5, 'audio': 0.128},
+                    480: {'video': 1.0, 'audio': 0.128},
+                    360: {'video': 0.5, 'audio': 0.128},
                 }
                 
-                # Mostrar todas las calidades posibles (Cobalt/yt-dlp ajustarán automáticamente)
-                quality_definitions = [
-                    {'format_id': 'max', 'height': 2160, 'quality': '4K (2160p)', 'resolution': '3840x2160', 'fps': 60},
-                    {'format_id': '1440', 'height': 1440, 'quality': '2K (1440p)', 'resolution': '2560x1440', 'fps': 60},
-                    {'format_id': '1080', 'height': 1080, 'quality': 'Full HD (1080p)', 'resolution': '1920x1080', 'fps': 60},
-                    {'format_id': '720', 'height': 720, 'quality': 'HD (720p)', 'resolution': '1280x720', 'fps': 30},
-                    {'format_id': '480', 'height': 480, 'quality': 'SD (480p)', 'resolution': '854x480', 'fps': 30},
-                    {'format_id': '360', 'height': 360, 'quality': 'Baja (360p)', 'resolution': '640x360', 'fps': 30},
-                ]
+                # Mapeo de calidades
+                quality_map = {
+                    2160: {'format_id': 'max', 'quality': '4K (2160p)', 'resolution': '3840x2160', 'fps': 60},
+                    1440: {'format_id': '1440', 'quality': '2K (1440p)', 'resolution': '2560x1440', 'fps': 60},
+                    1080: {'format_id': '1080', 'quality': 'Full HD (1080p)', 'resolution': '1920x1080', 'fps': 60},
+                    720: {'format_id': '720', 'quality': 'HD (720p)', 'resolution': '1280x720', 'fps': 30},
+                    480: {'format_id': '480', 'quality': 'SD (480p)', 'resolution': '854x480', 'fps': 30},
+                    360: {'format_id': '360', 'quality': 'Baja (360p)', 'resolution': '640x360', 'fps': 30},
+                }
                 
-                for quality_def in quality_definitions:
-                    target_height = quality_def['height']
+                # Generar solo formatos disponibles
+                for height in sorted(available_formats.keys(), reverse=True):
+                    if height not in quality_map:
+                        continue
                     
-                    # Calcular tamaño estimado con bitrate
-                    if duration > 0:
-                        bitrates = bitrate_estimates.get(target_height, {'video': 1.0, 'audio': 0.128})
+                    quality_info = quality_map[height]
+                    fmt = available_formats[height]
+                    
+                    # Intentar obtener tamaño real
+                    filesize = fmt.get('filesize') or fmt.get('filesize_approx', 0)
+                    
+                    # Si no hay tamaño, estimar con bitrate
+                    if filesize == 0 and duration > 0:
+                        bitrates = bitrate_estimates.get(height, {'video': 1.0, 'audio': 0.128})
                         total_bitrate_mbps = bitrates['video'] + bitrates['audio']
                         filesize = int((total_bitrate_mbps * duration * 1000000) / 8)
-                        filesize_mb = round(filesize / (1024 * 1024), 2)
-                    else:
-                        filesize = 0
-                        filesize_mb = 'Variable'
                     
-                    print(f"[COBALT] ✓ {quality_def['quality']}: ~{filesize_mb} MB (estimado)")
+                    filesize_mb = round(filesize / (1024 * 1024), 2) if filesize > 0 else 'Variable'
+                    
+                    print(f"[COBALT] ✓ {quality_info['quality']}: ~{filesize_mb} MB")
                     
                     formats_with_sizes.append({
-                        'format_id': quality_def['format_id'],
-                        'ext': 'mp4',
-                        'quality': quality_def['quality'],
-                        'height': target_height,
-                        'resolution': quality_def['resolution'],
-                        'fps': quality_def['fps'],
-                        'vcodec': 'h264',
-                        'acodec': 'aac',
+                        'format_id': quality_info['format_id'],
+                        'ext': fmt.get('ext', 'mp4'),
+                        'quality': quality_info['quality'],
+                        'height': height,
+                        'resolution': quality_info['resolution'],
+                        'fps': fmt.get('fps', quality_info['fps']),
+                        'vcodec': fmt.get('vcodec', 'h264'),
+                        'acodec': fmt.get('acodec', 'aac'),
                         'filesize': filesize,
                         'filesize_mb': filesize_mb,
                         'has_audio': True
                     })
                 
-                print(f"[COBALT] ✓ 6 calidades preparadas (Cobalt descargará la mejor disponible)")
+                print(f"[COBALT] ✓ {len(formats_with_sizes)} calidades reales encontradas")
                 
                 # Ya no necesitamos consultar yt-dlp para formatos
                 # Cobalt y yt-dlp ajustarán automáticamente a la mejor disponible
