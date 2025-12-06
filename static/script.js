@@ -937,6 +937,9 @@ async function downloadFile(formatId, type) {
                 // Descargar el archivo
                 window.location.href = `/download_file/${data.download_id}?filename=${encodeURIComponent(data.filename)}`;
                 
+                // Activar confetti de celebración
+                triggerConfetti();
+                
                 setTimeout(() => {
                     hideElement('downloadProgress');
                     showElement('videoInfo');
@@ -1390,3 +1393,179 @@ function timeToSeconds(time) {
     const parts = time.split(':');
     return parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2]);
 }
+
+// ============================================
+// 🎨 MEJORAS VISUALES AVANZADAS
+// ============================================
+
+// Partículas flotantes de fondo
+class FloatingParticles {
+    constructor() {
+        this.canvas = document.getElementById('effectsCanvas');
+        if (!this.canvas) return;
+        
+        this.ctx = this.canvas.getContext('2d');
+        this.particles = [];
+        this.particleCount = 50;
+        this.colors = ['#6366f1', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b'];
+        
+        this.resize();
+        this.createParticles();
+        this.animate();
+        
+        window.addEventListener('resize', () => this.resize());
+    }
+    
+    resize() {
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+    }
+    
+    createParticles() {
+        for (let i = 0; i < this.particleCount; i++) {
+            this.particles.push({
+                x: Math.random() * this.canvas.width,
+                y: Math.random() * this.canvas.height,
+                radius: Math.random() * 3 + 1,
+                color: this.colors[Math.floor(Math.random() * this.colors.length)],
+                speedX: (Math.random() - 0.5) * 0.5,
+                speedY: (Math.random() - 0.5) * 0.5,
+                opacity: Math.random() * 0.5 + 0.2
+            });
+        }
+    }
+    
+    animate() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        this.particles.forEach(particle => {
+            particle.x += particle.speedX;
+            particle.y += particle.speedY;
+            
+            if (particle.x < 0 || particle.x > this.canvas.width) particle.speedX *= -1;
+            if (particle.y < 0 || particle.y > this.canvas.height) particle.speedY *= -1;
+            
+            this.ctx.beginPath();
+            this.ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+            this.ctx.fillStyle = particle.color;
+            this.ctx.globalAlpha = particle.opacity;
+            this.ctx.fill();
+        });
+        
+        this.ctx.globalAlpha = 1;
+        requestAnimationFrame(() => this.animate());
+    }
+}
+
+// Confetti mejorado para descargas exitosas
+function triggerConfetti() {
+    const container = document.getElementById('confettiContainer');
+    if (!container) return;
+    
+    const colors = ['#6366f1', '#ec4899', '#10b981', '#f59e0b', '#8b5cf6'];
+    const confettiCount = 100;
+    
+    for (let i = 0; i < confettiCount; i++) {
+        const confetti = document.createElement('div');
+        confetti.className = 'confetti-piece';
+        confetti.style.left = Math.random() * 100 + '%';
+        confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        confetti.style.animationDelay = Math.random() * 0.3 + 's';
+        confetti.style.animationDuration = (Math.random() * 2 + 2) + 's';
+        container.appendChild(confetti);
+        
+        setTimeout(() => confetti.remove(), 4000);
+    }
+    
+    // Agregar sonido de éxito si está activado
+    const successSound = document.getElementById('successSound');
+    if (successSound && localStorage.getItem('soundEffects') !== 'false') {
+        successSound.currentTime = 0;
+        successSound.volume = 0.3;
+        successSound.play().catch(() => {});
+    }
+}
+
+// Efecto de onda cuando se carga un video
+function createWaveEffect(element) {
+    const wave = document.createElement('div');
+    wave.className = 'wave-effect';
+    element.appendChild(wave);
+    
+    setTimeout(() => wave.remove(), 600);
+}
+
+// Animación de entrada suave para elementos
+function animateIn(element) {
+    element.style.opacity = '0';
+    element.style.transform = 'translateY(20px)';
+    
+    setTimeout(() => {
+        element.style.transition = 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)';
+        element.style.opacity = '1';
+        element.style.transform = 'translateY(0)';
+    }, 10);
+}
+
+// Loading spinner personalizado mejorado
+function showModernLoading(message = 'Procesando...') {
+    let loadingDiv = document.getElementById('modernLoading');
+    if (!loadingDiv) {
+        loadingDiv = document.createElement('div');
+        loadingDiv.id = 'modernLoading';
+        loadingDiv.className = 'modern-loading-overlay';
+        loadingDiv.innerHTML = `
+            <div class="modern-loading-content">
+                <div class="loading-spinner-modern">
+                    <div class="spinner-ring"></div>
+                    <div class="spinner-ring"></div>
+                    <div class="spinner-ring"></div>
+                </div>
+                <p class="loading-text-modern">${message}</p>
+                <div class="loading-progress-bar">
+                    <div class="loading-progress-fill"></div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(loadingDiv);
+    } else {
+        loadingDiv.querySelector('.loading-text-modern').textContent = message;
+        loadingDiv.style.display = 'flex';
+    }
+    
+    // Animar barra de progreso
+    const progressBar = loadingDiv.querySelector('.loading-progress-fill');
+    progressBar.style.width = '0%';
+    setTimeout(() => progressBar.style.width = '90%', 100);
+}
+
+function hideModernLoading() {
+    const loadingDiv = document.getElementById('modernLoading');
+    if (loadingDiv) {
+        const progressBar = loadingDiv.querySelector('.loading-progress-fill');
+        progressBar.style.width = '100%';
+        setTimeout(() => {
+            loadingDiv.style.display = 'none';
+        }, 300);
+    }
+}
+
+// Inicializar efectos al cargar
+document.addEventListener('DOMContentLoaded', () => {
+    // Iniciar partículas flotantes
+    new FloatingParticles();
+    
+    // Animar elementos existentes
+    document.querySelectorAll('.card, .info-card, .format-option').forEach((el, index) => {
+        setTimeout(() => animateIn(el), index * 50);
+    });
+    
+    // Agregar efectos de onda a botones principales
+    document.querySelectorAll('.primary-btn, .search-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            createWaveEffect(this);
+        });
+    });
+    
+    console.log('✨ Mejoras visuales cargadas');
+});
