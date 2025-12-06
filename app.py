@@ -73,129 +73,135 @@ download_progress = {}
 
 # Configuración de Cobalt API
 COBALT_API_URL = "https://api.cobalt.tools/api/json"
+COBALT_API_BACKUP = "https://co.wuk.sh/api/json"  # Endpoint alternativo
 
 def download_with_cobalt(url, quality='max'):
     """
     Descarga videos usando Cobalt API (para YouTube principalmente)
     Retorna la URL de descarga directa o None si falla
     """
-    try:
-        print(f"[COBALT] Intentando descargar con Cobalt API: {url}")
-        print(f"[COBALT] Calidad solicitada: {quality}")
-        
-        payload = {
-            "url": url,
-            "vQuality": quality,  # max, 2160, 1440, 1080, 720, 480, 360
-            "filenamePattern": "basic",
-            "isAudioOnly": False,
-            "disableMetadata": False
-        }
-        
-        headers = {
-            "Accept": "application/json",
-            "Content-Type": "application/json"
-        }
-        
-        print(f"[COBALT] Payload: {payload}")
-        response = requests.post(COBALT_API_URL, json=payload, headers=headers, timeout=30)
-        
-        print(f"[COBALT] Código de respuesta: {response.status_code}")
-        print(f"[COBALT] Respuesta completa: {response.text[:500]}")
-        
-        if response.status_code == 200:
-            data = response.json()
-            status = data.get('status')
-            print(f"[COBALT] Estado: {status}")
+    # Intentar con ambos endpoints
+    endpoints = [COBALT_API_URL, COBALT_API_BACKUP]
+    
+    for endpoint in endpoints:
+        try:
+            print(f"[COBALT] Intentando con endpoint: {endpoint}")
+            print(f"[COBALT] URL del video: {url}")
+            print(f"[COBALT] Calidad solicitada: {quality}")
             
-            if status == 'redirect' or status == 'stream':
-                download_url = data.get('url')
-                if download_url:
-                    print(f"[COBALT] ✓ URL de descarga obtenida: {download_url[:100]}...")
-                    return download_url
+            payload = {
+                "url": url,
+                "vQuality": quality,  # max, 2160, 1440, 1080, 720, 480, 360
+                "filenamePattern": "basic",
+                "isAudioOnly": False,
+                "disableMetadata": False
+            }
+            
+            headers = {
+                "Accept": "application/json",
+                "Content-Type": "application/json"
+            }
+            
+            print(f"[COBALT] Payload: {payload}")
+            response = requests.post(endpoint, json=payload, headers=headers, timeout=30)
+            
+            print(f"[COBALT] Código de respuesta: {response.status_code}")
+            print(f"[COBALT] Respuesta completa: {response.text[:500]}")
+            
+            if response.status_code == 200:
+                data = response.json()
+                status = data.get('status')
+                print(f"[COBALT] Estado: {status}")
+                
+                if status == 'redirect' or status == 'stream':
+                    download_url = data.get('url')
+                    if download_url:
+                        print(f"[COBALT] ✓ URL de descarga obtenida: {download_url[:100]}...")
+                        return download_url
+                    else:
+                        print(f"[COBALT] ✗ No hay URL en la respuesta")
+                        print(f"[COBALT] Datos completos: {data}")
+                elif status == 'picker':
+                    # Múltiples opciones (videos de carrusel, etc)
+                    picker = data.get('picker', [])
+                    if picker:
+                        download_url = picker[0].get('url')
+                        print(f"[COBALT] ✓ URL de descarga obtenida (picker): {download_url[:100]}...")
+                        return download_url
+                    else:
+                        print(f"[COBALT] ✗ Picker vacío")
+                elif status == 'error':
+                    error_text = data.get('text', 'Error desconocido')
+                    print(f"[COBALT] ✗ Error de Cobalt: {error_text}")
                 else:
-                    print(f"[COBALT] ✗ No hay URL en la respuesta")
+                    print(f"[COBALT] ✗ Estado no manejado: {status}")
                     print(f"[COBALT] Datos completos: {data}")
-                    return None
-            elif status == 'picker':
-                # Múltiples opciones (videos de carrusel, etc)
-                picker = data.get('picker', [])
-                if picker:
-                    download_url = picker[0].get('url')
-                    print(f"[COBALT] ✓ URL de descarga obtenida (picker): {download_url[:100]}...")
-                    return download_url
-                else:
-                    print(f"[COBALT] ✗ Picker vacío")
-                    return None
-            elif status == 'error':
-                error_text = data.get('text', 'Error desconocido')
-                print(f"[COBALT] ✗ Error de Cobalt: {error_text}")
-                return None
             else:
-                print(f"[COBALT] ✗ Estado no manejado: {status}")
-                print(f"[COBALT] Datos completos: {data}")
-                return None
-        else:
-            print(f"[COBALT] ✗ Error HTTP {response.status_code}")
-            print(f"[COBALT] Respuesta: {response.text}")
-            return None
-            
-    except Exception as e:
-        print(f"[COBALT] ✗ Error: {e}")
-        import traceback
-        traceback.print_exc()
-        return None
+                print(f"[COBALT] ✗ Error HTTP {response.status_code}")
+                print(f"[COBALT] Respuesta: {response.text}")
+                
+        except Exception as e:
+            print(f"[COBALT] ✗ Error con {endpoint}: {e}")
+            import traceback
+            traceback.print_exc()
+            continue
+    
+    print(f"[COBALT] ✗ Todos los endpoints fallaron")
+    return None
 
 def download_with_cobalt_audio(url):
     """
     Descarga solo audio usando Cobalt API
     """
-    try:
-        print(f"[COBALT] Descargando audio con Cobalt API: {url}")
-        
-        payload = {
-            "url": url,
-            "isAudioOnly": True,
-            "filenamePattern": "basic",
-            "disableMetadata": False
-        }
-        
-        headers = {
-            "Accept": "application/json",
-            "Content-Type": "application/json"
-        }
-        
-        print(f"[COBALT] Payload audio: {payload}")
-        response = requests.post(COBALT_API_URL, json=payload, headers=headers, timeout=30)
-        
-        print(f"[COBALT] Código de respuesta audio: {response.status_code}")
-        print(f"[COBALT] Respuesta audio: {response.text[:500]}")
-        
-        if response.status_code == 200:
-            data = response.json()
-            status = data.get('status')
-            print(f"[COBALT] Estado audio: {status}")
+    # Intentar con ambos endpoints
+    endpoints = [COBALT_API_URL, COBALT_API_BACKUP]
+    
+    for endpoint in endpoints:
+        try:
+            print(f"[COBALT] Descargando audio con endpoint: {endpoint}")
             
-            if status in ['redirect', 'stream']:
-                download_url = data.get('url')
-                if download_url:
-                    print(f"[COBALT] ✓ URL de audio obtenida: {download_url[:100]}...")
-                    return download_url
-                else:
-                    print(f"[COBALT] ✗ No hay URL de audio en la respuesta")
-                    return None
-            elif status == 'error':
-                error_text = data.get('text', 'Error desconocido')
-                print(f"[COBALT] ✗ Error de Cobalt audio: {error_text}")
-                return None
-        
-        print(f"[COBALT] ✗ No se pudo obtener audio")
-        return None
-        
-    except Exception as e:
-        print(f"[COBALT] ✗ Error descargando audio: {e}")
-        import traceback
-        traceback.print_exc()
-        return None
+            payload = {
+                "url": url,
+                "isAudioOnly": True,
+                "filenamePattern": "basic",
+                "disableMetadata": False
+            }
+            
+            headers = {
+                "Accept": "application/json",
+                "Content-Type": "application/json"
+            }
+            
+            print(f"[COBALT] Payload audio: {payload}")
+            response = requests.post(endpoint, json=payload, headers=headers, timeout=30)
+            
+            print(f"[COBALT] Código de respuesta audio: {response.status_code}")
+            print(f"[COBALT] Respuesta audio: {response.text[:500]}")
+            
+            if response.status_code == 200:
+                data = response.json()
+                status = data.get('status')
+                print(f"[COBALT] Estado audio: {status}")
+                
+                if status in ['redirect', 'stream']:
+                    download_url = data.get('url')
+                    if download_url:
+                        print(f"[COBALT] ✓ URL de audio obtenida: {download_url[:100]}...")
+                        return download_url
+                    else:
+                        print(f"[COBALT] ✗ No hay URL de audio en la respuesta")
+                elif status == 'error':
+                    error_text = data.get('text', 'Error desconocido')
+                    print(f"[COBALT] ✗ Error de Cobalt audio: {error_text}")
+            
+        except Exception as e:
+            print(f"[COBALT] ✗ Error descargando audio con {endpoint}: {e}")
+            import traceback
+            traceback.print_exc()
+            continue
+    
+    print(f"[COBALT] ✗ No se pudo obtener audio de ningún endpoint")
+    return None
 
 def clean_old_files():
     """Elimina archivos con más de 1 hora"""
