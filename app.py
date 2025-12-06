@@ -377,27 +377,33 @@ def get_formats():
                         'platform': 'youtube-cobalt'
                     })
                 
-                # UNA SOLA LLAMADA a yt-dlp para obtener TODO (duración + formatos)
-                print(f"[COBALT] Analizando video con yt-dlp (optimizado)...")
+                # ESTRATEGIA OPCIÓN C: yt-dlp detecta + Cobalt descarga
+                # Usar yt-dlp SOLO para detección, Cobalt para descargar
+                print(f"[COBALT] Detectando calidades reales con yt-dlp...")
                 duration = 0
                 available_formats = {}
                 
-                # ESTRATEGIA NUEVA: Mostrar TODAS las calidades siempre (Cobalt decide si existen)
-                # YouTube siempre tiene estas calidades potencialmente disponibles
-                print(f"[COBALT] ⚡ Modo Cobalt: mostrando todas las calidades (Cobalt filtrará automáticamente)")
-                
-                # Solo obtener duración con yt-dlp (no formatos, evita bloqueos)
                 try:
                     user_agent = get_random_user_agent()
                     
+                    # Configuración agresiva: intentar obtener TODOS los formatos
                     ydl_opts = {
                         'quiet': True,
                         'no_warnings': True,
                         'skip_download': True,
-                        'extract_flat': True,  # Solo metadata básica
-                        'socket_timeout': 10,
+                        'socket_timeout': 30,
+                        'format': 'bestvideo*[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+                        'extractor_args': {
+                            'youtube': {
+                                'player_client': ['android_testsuite', 'web', 'ios'],
+                                'skip': ['translated_subs']
+                            }
+                        },
                         'http_headers': {
                             'User-Agent': user_agent,
+                            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                            'Accept-Language': 'en-us,en;q=0.5',
+                            'Sec-Fetch-Mode': 'navigate',
                         }
                     }
                     if COOKIES_FILE and os.path.exists(COOKIES_FILE):
@@ -405,29 +411,59 @@ def get_formats():
                     
                     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                         info = ydl.extract_info(url, download=False)
-                        duration = info.get('duration', 0)
                         
+                        # Obtener duración
+                        duration = info.get('duration', 0)
                         if duration > 0:
                             mins = duration // 60
                             secs = duration % 60
                             print(f"[COBALT] ✓ Duración: {duration}s ({mins}:{secs:02d})")
+                        
+                        # Obtener formatos
+                        yt_formats = info.get('formats', [])
+                        print(f"[COBALT] Total formatos encontrados: {len(yt_formats)}")
+                        
+                        # Detectar alturas únicas
+                        all_heights = set()
+                        for fmt in yt_formats:
+                            height = fmt.get('height')
+                            vcodec = fmt.get('vcodec', 'none')
+                            if height and vcodec != 'none':
+                                all_heights.add(height)
+                                # Guardar mejor formato por altura
+                                filesize = fmt.get('filesize') or fmt.get('filesize_approx', 0)
+                                if height not in available_formats or filesize > available_formats[height].get('filesize', 0):
+                                    available_formats[height] = fmt
+                        
+                        print(f"[COBALT] ✓ Calidades detectadas por yt-dlp: {sorted(all_heights, reverse=True)}")
+                        
+                        # Si no detectó 4K, intentar con APIs externas
+                        if all_heights and max(all_heights) < 2160:
+                            print(f"[COBALT] 🔄 yt-dlp solo encontró hasta {max(all_heights)}p")
+                            print(f"[COBALT] 💡 Nota: Cobalt API puede tener acceso a 4K aunque yt-dlp no lo detecte")
+                            print(f"[COBALT] 💡 Agregando 4K y 2K como opciones (Cobalt intentará descargarlas)")
+                            
+                            # Agregar 4K y 2K como disponibles para que Cobalt lo intente
+                            if 2160 not in available_formats:
+                                available_formats[2160] = {'filesize': 0}
+                            if 1440 not in available_formats:
+                                available_formats[1440] = {'filesize': 0}
+                        
+                        resolutions = sorted(available_formats.keys(), reverse=True)
+                        print(f"[COBALT] ✓ Calidades finales a mostrar: {resolutions}")
                 
                 except Exception as e:
-                    print(f"[COBALT] ⚠ No se pudo obtener duración: {e}")
-                    duration = 0
-                
-                # Mostrar TODAS las calidades estándar de YouTube
-                # Cobalt API se encargará de devolver error si no existe
-                available_formats = {
-                    2160: {'filesize': 0},  # 4K
-                    1440: {'filesize': 0},  # 2K  
-                    1080: {'filesize': 0},  # Full HD
-                    720: {'filesize': 0},   # HD
-                    480: {'filesize': 0},   # SD
-                    360: {'filesize': 0},   # Baja
-                }
-                
-                print(f"[COBALT] ✓ Mostrando 6 calidades estándar (4K, 2K, 1080p, 720p, 480p, 360p)")
+                    print(f"[COBALT] ⚠ Error en yt-dlp: {e}")
+                    print(f"[COBALT] ⚠ Mostrando calidades estándar (Cobalt decidirá disponibilidad)")
+                    duration = 180
+                    available_formats = {
+                        2160: {'filesize': 0},
+                        1440: {'filesize': 0},
+                        1080: {'filesize': 0},
+                        720: {'filesize': 0},
+                        480: {'filesize': 0},
+                        360: {'filesize': 0},
+                    }
                 
                 thumbnail = f"https://i.ytimg.com/vi/{video_id}/maxresdefault.jpg"
                 
