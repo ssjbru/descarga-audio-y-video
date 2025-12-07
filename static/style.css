@@ -3747,6 +3747,7 @@ body.party-mode .floating-settings-btn {
     margin-bottom: 10px;
     background: linear-gradient(135deg, #6366f1, #ec4899);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 

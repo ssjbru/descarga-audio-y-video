@@ -1832,12 +1832,3 @@ function downloadBatchSequential(urls, index) {
         setTimeout(() => downloadBatchSequential(urls, index + 1), 1000);
     });
 }
-    // Agregar efectos de onda a botones principales
-    document.querySelectorAll('.primary-btn, .search-btn').forEach(btn => {
-        btn.addEventListener('click', function(e) {
-            createWaveEffect(this);
-        });
-    });
-    
-    console.log('✨ Mejoras visuales cargadas');
-});
