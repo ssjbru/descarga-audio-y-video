@@ -264,6 +264,64 @@ def ads_txt():
     from flask import Response
     return Response('google.com, pub-7759712886141440, DIRECT, f08c47fec0942fa0', mimetype='text/plain')
 
+@app.route('/validate_batch_urls', methods=['POST'])
+def validate_batch_urls():
+    """Valida múltiples URLs para descarga por lotes"""
+    try:
+        data = request.get_json()
+        urls = data.get('urls', [])
+        
+        if not urls or not isinstance(urls, list):
+            return jsonify({'error': 'URLs no proporcionadas o formato inválido'}), 400
+        
+        if len(urls) > 10:
+            return jsonify({'error': 'Máximo 10 URLs permitidas'}), 400
+        
+        results = []
+        
+        for url in urls:
+            try:
+                # Validar formato básico
+                if not url.startswith(('http://', 'https://')):
+                    results.append({
+                        'url': url,
+                        'valid': False,
+                        'error': 'URL debe comenzar con http:// o https://'
+                    })
+                    continue
+                
+                # Intentar obtener información básica con yt-dlp
+                ydl_opts = {
+                    'quiet': True,
+                    'no_warnings': True,
+                    'extract_flat': True,
+                    'skip_download': True,
+                }
+                
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    info = ydl.extract_info(url, download=False)
+                    
+                    results.append({
+                        'url': url,
+                        'valid': True,
+                        'title': info.get('title', 'Sin título'),
+                        'platform': info.get('extractor_key', 'Desconocido'),
+                        'duration': info.get('duration', 0)
+                    })
+                    
+            except Exception as e:
+                results.append({
+                    'url': url,
+                    'valid': False,
+                    'error': str(e)
+                })
+        
+        return jsonify({'results': results})
+        
+    except Exception as e:
+        print(f"[ERROR] Error al validar batch URLs: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/supported_sites')
 def supported_sites():
     """Obtiene la lista completa de sitios soportados por yt-dlp"""

@@ -444,6 +444,7 @@
         <main>
             <div class="tabs main-tabs">
                 <button class="tab-btn active" onclick="switchMainTab('url')" data-i18n="tab_url">🔗 Desde URL</button>
+                <button class="tab-btn" onclick="switchMainTab('batch')" data-i18n="tab_batch">📦 Lote (Múltiples)</button>
                 <button class="tab-btn" onclick="switchMainTab('upload')" data-i18n="tab_trim">✂️ Recortar Archivo</button>
                 <button class="tab-btn" onclick="switchMainTab('convert')" data-i18n="tab_convert">🔄 Convertir Formato</button>
             </div>
@@ -472,6 +473,48 @@
                         autocomplete="off"
                     >
                     <button id="getFormatsBtn" onclick="getFormats()" data-i18n="search_btn">🔍 Buscar</button>
+                </div>
+            </div>
+
+            <!-- NUEVA SECCIÓN: DESCARGAS POR LOTES -->
+            <div id="batchSection" class="main-section hidden">
+                <div class="batch-download-section">
+                    <div class="batch-header">
+                        <h2>📦 Descarga Múltiple (Lote)</h2>
+                        <p>Pega hasta 10 URLs (una por línea) y descarga todas de una vez</p>
+                    </div>
+                    
+                    <textarea 
+                        id="batchUrlsInput" 
+                        placeholder="Pega aquí tus URLs, una por línea. Ejemplo:&#10;https://www.youtube.com/watch?v=abc123&#10;https://www.tiktok.com/@usuario/video/xyz&#10;https://soundcloud.com/artista/cancion&#10;&#10;Máximo 10 URLs"
+                        rows="10"
+                    ></textarea>
+                    
+                    <div class="batch-controls">
+                        <button id="analyzeBatchBtn" onclick="analyzeBatchUrls()" class="primary-btn">
+                            🔍 Analizar URLs
+                        </button>
+                        <button id="clearBatchBtn" onclick="clearBatchUrls()" class="secondary-btn">
+                            🗑️ Limpiar
+                        </button>
+                    </div>
+                    
+                    <div id="batchResults" class="batch-results hidden">
+                        <h3>📊 Resultados del Análisis:</h3>
+                        <div id="batchUrlsList" class="batch-urls-list"></div>
+                        
+                        <div class="batch-actions">
+                            <button onclick="downloadAllBatch()" class="download-all-btn">
+                                ⬇️ Descargar Todo (Mejor Calidad)
+                            </button>
+                            <p class="batch-note">💡 Las descargas comenzarán automáticamente una por una</p>
+                        </div>
+                    </div>
+                    
+                    <div id="batchProgress" class="batch-progress hidden">
+                        <h3>⚡ Descargando...</h3>
+                        <div id="batchProgressList" class="batch-progress-list"></div>
+                    </div>
                 </div>
             </div>
 

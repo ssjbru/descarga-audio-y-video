@@ -26,6 +26,7 @@ function showError(message) {
 function switchMainTab(tab) {
     const tabs = document.querySelectorAll('.main-tabs .tab-btn');
     const urlSection = document.getElementById('urlSection');
+    const batchSection = document.getElementById('batchSection');
     const uploadSection = document.getElementById('uploadSection');
     const convertSection = document.getElementById('convertSection');
 
@@ -34,16 +35,25 @@ function switchMainTab(tab) {
     if (tab === 'url') {
         tabs[0].classList.add('active');
         showElement('urlSection');
+        hideElement('batchSection');
+        hideElement('uploadSection');
+        hideElement('convertSection');
+    } else if (tab === 'batch') {
+        tabs[1].classList.add('active');
+        hideElement('urlSection');
+        showElement('batchSection');
         hideElement('uploadSection');
         hideElement('convertSection');
     } else if (tab === 'upload') {
-        tabs[1].classList.add('active');
+        tabs[2].classList.add('active');
         hideElement('urlSection');
+        hideElement('batchSection');
         showElement('uploadSection');
         hideElement('convertSection');
     } else if (tab === 'convert') {
-        tabs[2].classList.add('active');
+        tabs[3].classList.add('active');
         hideElement('urlSection');
+        hideElement('batchSection');
         hideElement('uploadSection');
         showElement('convertSection');
     }
@@ -1574,6 +1584,254 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => animateIn(el), index * 50);
     });
     
+    // Agregar efectos de onda a botones principales
+    document.querySelectorAll('.primary-btn, .search-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            createWaveEffect(this);
+        });
+    });
+    
+    console.log('✨ Mejoras visuales cargadas');
+});
+
+// ==================== BATCH DOWNLOADS ====================
+
+let batchValidatedUrls = [];
+
+function analyzeBatchUrls() {
+    const textarea = document.getElementById('batchUrlsInput');
+    const input = textarea.value.trim();
+    
+    if (!input) {
+        showError('Por favor, ingresa al menos una URL.');
+        return;
+    }
+    
+    // Dividir por líneas y filtrar vacías
+    const urls = input.split('\n')
+        .map(url => url.trim())
+        .filter(url => url.length > 0);
+    
+    // Validar límite de 10
+    if (urls.length > 10) {
+        showError('Máximo 10 URLs permitidas. Has ingresado ' + urls.length + ' URLs.');
+        return;
+    }
+    
+    // Eliminar duplicados
+    const uniqueUrls = [...new Set(urls)];
+    if (uniqueUrls.length !== urls.length) {
+        showError('Se eliminaron URLs duplicadas.');
+    }
+    
+    // Validar formato básico de URL
+    const urlPattern = /^https?:\/\/.+/i;
+    const invalidUrls = uniqueUrls.filter(url => !urlPattern.test(url));
+    
+    if (invalidUrls.length > 0) {
+        showError('URLs inválidas detectadas: ' + invalidUrls.join(', '));
+        return;
+    }
+    
+    // Mostrar loading
+    showModernLoading('Analizando ' + uniqueUrls.length + ' URLs...');
+    
+    // Validar URLs con el backend
+    fetch('/validate_batch_urls', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ urls: uniqueUrls })
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideModernLoading();
+        
+        if (data.error) {
+            showError(data.error);
+            return;
+        }
+        
+        batchValidatedUrls = data.results;
+        displayBatchResults();
+    })
+    .catch(error => {
+        hideModernLoading();
+        showError('Error al analizar URLs: ' + error.message);
+    });
+}
+
+function displayBatchResults() {
+    const resultsDiv = document.getElementById('batchResults');
+    const urlsList = document.getElementById('batchUrlsList');
+    
+    urlsList.innerHTML = '';
+    
+    batchValidatedUrls.forEach((item, index) => {
+        const urlItem = document.createElement('div');
+        urlItem.className = 'batch-url-item';
+        
+        if (item.valid) {
+            urlItem.innerHTML = `
+                <span class="batch-url-status">✅</span>
+                <div class="batch-url-info">
+                    <div class="url-title">${item.title || 'Título no disponible'}</div>
+                    <div class="url-platform">📍 ${item.platform || 'Plataforma desconocida'}</div>
+                    <div class="url-text">${item.url}</div>
+                </div>
+            `;
+        } else {
+            urlItem.innerHTML = `
+                <span class="batch-url-status">❌</span>
+                <div class="batch-url-info">
+                    <div class="batch-url-error">Error: ${item.error}</div>
+                    <div class="url-text">${item.url}</div>
+                </div>
+            `;
+        }
+        
+        urlsList.appendChild(urlItem);
+    });
+    
+    showElement('batchResults');
+    
+    // Scroll suave hacia los resultados
+    resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function clearBatchUrls() {
+    document.getElementById('batchUrlsInput').value = '';
+    hideElement('batchResults');
+    batchValidatedUrls = [];
+}
+
+function downloadAllBatch() {
+    const validUrls = batchValidatedUrls.filter(item => item.valid);
+    
+    if (validUrls.length === 0) {
+        showError('No hay URLs válidas para descargar.');
+        return;
+    }
+    
+    // Mostrar sección de progreso
+    showElement('batchProgress');
+    
+    const progressList = document.getElementById('batchProgressList');
+    progressList.innerHTML = '';
+    
+    // Crear elementos de progreso para cada URL
+    validUrls.forEach((item, index) => {
+        const progressItem = document.createElement('div');
+        progressItem.className = 'batch-progress-item';
+        progressItem.id = 'batch-progress-' + index;
+        progressItem.innerHTML = `
+            <div class="batch-progress-header">
+                <div class="batch-progress-title">${item.title || item.url}</div>
+                <span class="batch-progress-status status-downloading">⏳ Esperando...</span>
+            </div>
+            <div class="batch-progress-bar">
+                <div class="batch-progress-fill" style="width: 0%"></div>
+            </div>
+        `;
+        progressList.appendChild(progressItem);
+    });
+    
+    // Descargar secuencialmente
+    downloadBatchSequential(validUrls, 0);
+}
+
+function downloadBatchSequential(urls, index) {
+    if (index >= urls.length) {
+        // Todas las descargas completadas
+        showError('✅ Todas las descargas completadas.');
+        return;
+    }
+    
+    const item = urls[index];
+    const progressItem = document.getElementById('batch-progress-' + index);
+    const statusSpan = progressItem.querySelector('.batch-progress-status');
+    const progressBar = progressItem.querySelector('.batch-progress-fill');
+    
+    // Actualizar estado a "descargando"
+    statusSpan.textContent = '⬇️ Descargando...';
+    statusSpan.className = 'batch-progress-status status-downloading';
+    progressBar.style.width = '50%';
+    
+    // Hacer scroll al item actual
+    progressItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    
+    // Obtener formatos del video
+    fetch('/get_formats', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url: item.url })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        
+        // Descargar mejor formato disponible (primer video format)
+        const bestFormat = data.video_formats && data.video_formats.length > 0 
+            ? data.video_formats[0] 
+            : null;
+        
+        if (!bestFormat) {
+            throw new Error('No hay formatos disponibles');
+        }
+        
+        return fetch('/download', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                url: item.url,
+                quality: bestFormat.quality,
+                format: bestFormat.format
+            })
+        });
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Error en la descarga');
+        }
+        return response.blob();
+    })
+    .then(blob => {
+        // Descarga exitosa
+        statusSpan.textContent = '✅ Completado';
+        statusSpan.className = 'batch-progress-status status-completed';
+        progressBar.style.width = '100%';
+        
+        // Crear enlace de descarga
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = item.title + '.mp4';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        
+        // Continuar con siguiente descarga después de 1 segundo
+        setTimeout(() => downloadBatchSequential(urls, index + 1), 1000);
+    })
+    .catch(error => {
+        // Error en la descarga
+        statusSpan.textContent = '❌ Error: ' + error.message;
+        statusSpan.className = 'batch-progress-status status-error';
+        progressBar.style.width = '100%';
+        progressBar.style.background = '#ef4444';
+        
+        // Continuar con siguiente descarga después de 1 segundo
+        setTimeout(() => downloadBatchSequential(urls, index + 1), 1000);
+    });
+}
     // Agregar efectos de onda a botones principales
     document.querySelectorAll('.primary-btn, .search-btn').forEach(btn => {
         btn.addEventListener('click', function(e) {

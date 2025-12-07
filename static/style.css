@@ -3728,3 +3728,296 @@ body.party-mode .floating-settings-btn {
                 border-color 0.3s ease,
                 box-shadow 0.3s ease !important;
 }
+
+/* ==================== DESCARGAS POR LOTES ==================== */
+
+.batch-download-section {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 30px;
+}
+
+.batch-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.batch-header h2 {
+    font-size: 2rem;
+    margin-bottom: 10px;
+    background: linear-gradient(135deg, #6366f1, #ec4899);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.batch-header p {
+    color: var(--text-muted);
+    font-size: 1.1rem;
+}
+
+#batchUrlsInput {
+    width: 100%;
+    min-height: 250px;
+    padding: 20px;
+    font-size: 1rem;
+    font-family: 'Courier New', monospace;
+    border: 2px solid var(--border-color);
+    border-radius: 15px;
+    background: var(--bg-secondary);
+    color: var(--text-color);
+    resize: vertical;
+    transition: all 0.3s ease;
+}
+
+#batchUrlsInput:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+}
+
+#batchUrlsInput::placeholder {
+    color: var(--text-muted);
+    opacity: 0.7;
+}
+
+.batch-controls {
+    display: flex;
+    gap: 15px;
+    margin-top: 20px;
+    justify-content: center;
+}
+
+.primary-btn, .secondary-btn {
+    padding: 15px 40px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.primary-btn {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+}
+
+.primary-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(99, 102, 241, 0.4);
+}
+
+.secondary-btn {
+    background: var(--bg-secondary);
+    color: var(--text-color);
+    border: 2px solid var(--border-color);
+}
+
+.secondary-btn:hover {
+    background: var(--border-color);
+}
+
+.batch-results {
+    margin-top: 40px;
+    padding: 30px;
+    background: var(--bg-secondary);
+    border-radius: 20px;
+    border: 2px solid var(--border-color);
+}
+
+.batch-results h3 {
+    font-size: 1.5rem;
+    margin-bottom: 20px;
+    color: var(--text-color);
+}
+
+.batch-urls-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+.batch-url-item {
+    padding: 20px;
+    background: var(--bg-color);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    transition: all 0.3s ease;
+}
+
+.batch-url-item:hover {
+    border-color: #6366f1;
+    transform: translateX(5px);
+}
+
+.batch-url-status {
+    font-size: 1.5rem;
+    min-width: 30px;
+}
+
+.batch-url-info {
+    flex: 1;
+}
+
+.batch-url-info .url-text {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    word-break: break-all;
+    margin-bottom: 5px;
+}
+
+.batch-url-info .url-title {
+    font-weight: 600;
+    color: var(--text-color);
+    margin-bottom: 3px;
+}
+
+.batch-url-info .url-platform {
+    font-size: 0.85rem;
+    color: #6366f1;
+    font-weight: 500;
+}
+
+.batch-url-error {
+    color: #ef4444;
+    font-weight: 500;
+}
+
+.batch-actions {
+    text-align: center;
+    margin-top: 30px;
+}
+
+.download-all-btn {
+    padding: 18px 50px;
+    font-size: 1.2rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    border: none;
+    border-radius: 15px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 5px 20px rgba(16, 185, 129, 0.3);
+}
+
+.download-all-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 30px rgba(16, 185, 129, 0.5);
+}
+
+.batch-note {
+    margin-top: 15px;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+}
+
+.batch-progress {
+    margin-top: 40px;
+    padding: 30px;
+    background: var(--bg-secondary);
+    border-radius: 20px;
+    border: 2px solid var(--border-color);
+}
+
+.batch-progress h3 {
+    font-size: 1.5rem;
+    margin-bottom: 20px;
+    color: var(--text-color);
+}
+
+.batch-progress-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.batch-progress-item {
+    padding: 20px;
+    background: var(--bg-color);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+}
+
+.batch-progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.batch-progress-title {
+    font-weight: 600;
+    color: var(--text-color);
+    flex: 1;
+}
+
+.batch-progress-status {
+    font-size: 0.9rem;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-weight: 500;
+}
+
+.status-downloading {
+    background: rgba(99, 102, 241, 0.2);
+    color: #6366f1;
+}
+
+.status-completed {
+    background: rgba(16, 185, 129, 0.2);
+    color: #10b981;
+}
+
+.status-error {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+.batch-progress-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--border-color);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-top: 10px;
+}
+
+.batch-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    border-radius: 10px;
+    transition: width 0.3s ease;
+}
+
+@media (max-width: 768px) {
+    .batch-download-section {
+        padding: 20px 15px;
+    }
+    
+    .batch-header h2 {
+        font-size: 1.5rem;
+    }
+    
+    #batchUrlsInput {
+        min-height: 200px;
+        font-size: 0.9rem;
+    }
+    
+    .batch-controls {
+        flex-direction: column;
+    }
+    
+    .primary-btn, .secondary-btn {
+        width: 100%;
+    }
+    
+    .download-all-btn {
+        width: 100%;
+        padding: 15px 30px;
+    }
+}

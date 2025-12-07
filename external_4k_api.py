@@ -45,7 +45,9 @@ def get_4k_formats_external(video_id):
                 invidious_url = f"{instance}/api/v1/videos/{video_id}"
                 print(f"[EXTERNAL_API] 🔍 Intentando Invidious: {instance}")
                 
-                response = requests.get(invidious_url, timeout=10)
+                response = requests.get(invidious_url, timeout=5, headers={
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                })
                 
                 if response.status_code == 200:
                     data = response.json()
@@ -100,7 +102,9 @@ def get_4k_formats_external(video_id):
                 piped_url = f"{instance}/streams/{video_id}"
                 print(f"[EXTERNAL_API] 🔍 Intentando Piped: {instance}")
                 
-                response = requests.get(piped_url, timeout=10)
+                response = requests.get(piped_url, timeout=5, headers={
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                })
                 
                 if response.status_code == 200:
                     data = response.json()
