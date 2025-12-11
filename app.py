@@ -167,13 +167,21 @@ def get_kick_video_info(video_id):
         if scraper_api_key:
             print(f"[KICK API] Usando ScraperAPI para bypassear protecciones")
             # ScraperAPI como proxy
-            scraperapi_url = f"https://api.scraperapi.com/?api_key={scraper_api_key}&url={api_url}"
+            import urllib.parse
+            encoded_url = urllib.parse.quote(api_url, safe='')
+            scraperapi_url = f"https://api.scraperapi.com/?api_key={scraper_api_key}&url={encoded_url}"
+            
+            print(f"[KICK API] URL ScraperAPI: {scraperapi_url[:120]}...")
             
             headers = {
                 'Accept': 'application/json',
             }
             
             response = requests.get(scraperapi_url, headers=headers, timeout=30)
+            
+            print(f"[KICK API] Status code: {response.status_code}")
+            print(f"[KICK API] Content-Type: {response.headers.get('Content-Type')}")
+            print(f"[KICK API] Response preview: {response.text[:300]}")
             
         else:
             print(f"[KICK API] Sin ScraperAPI - usando método directo (puede fallar)")
