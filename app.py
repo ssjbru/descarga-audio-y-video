@@ -161,31 +161,48 @@ def get_kick_video_info(video_id):
         # API pública de Kick
         api_url = f"https://kick.com/api/v2/video/{video_id}"
         
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'application/json',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Referer': 'https://kick.com/',
-            'Origin': 'https://kick.com',
-            'Sec-Fetch-Dest': 'empty',
-            'Sec-Fetch-Mode': 'cors',
-            'Sec-Fetch-Site': 'same-origin',
-        }
+        # Verificar si tenemos ScraperAPI configurada
+        scraper_api_key = os.environ.get('SCRAPERAPI_KEY')
         
-        # Cargar cookies desde archivo si están disponibles
-        cookies = None
-        if KICK_COOKIES_FILE and os.path.exists(KICK_COOKIES_FILE):
-            print(f"[KICK API] Cargando cookies desde: {KICK_COOKIES_FILE}")
-            try:
-                from http.cookiejar import MozillaCookieJar
-                cookies = MozillaCookieJar(KICK_COOKIES_FILE)
-                cookies.load(ignore_discard=True, ignore_expires=True)
-                print(f"[KICK API] ✓ {len(cookies)} cookies cargadas")
-            except Exception as e:
-                print(f"[KICK API] Error cargando cookies: {e}")
-                cookies = None
-        
-        response = requests.get(api_url, headers=headers, cookies=cookies, timeout=15)
+        if scraper_api_key:
+            print(f"[KICK API] Usando ScraperAPI para bypassear protecciones")
+            # ScraperAPI como proxy
+            scraperapi_url = f"https://api.scraperapi.com/?api_key={scraper_api_key}&url={api_url}"
+            
+            headers = {
+                'Accept': 'application/json',
+            }
+            
+            response = requests.get(scraperapi_url, headers=headers, timeout=30)
+            
+        else:
+            print(f"[KICK API] Sin ScraperAPI - usando método directo (puede fallar)")
+            
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'application/json',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Referer': 'https://kick.com/',
+                'Origin': 'https://kick.com',
+                'Sec-Fetch-Dest': 'empty',
+                'Sec-Fetch-Mode': 'cors',
+                'Sec-Fetch-Site': 'same-origin',
+            }
+            
+            # Cargar cookies desde archivo si están disponibles
+            cookies = None
+            if KICK_COOKIES_FILE and os.path.exists(KICK_COOKIES_FILE):
+                print(f"[KICK API] Cargando cookies desde: {KICK_COOKIES_FILE}")
+                try:
+                    from http.cookiejar import MozillaCookieJar
+                    cookies = MozillaCookieJar(KICK_COOKIES_FILE)
+                    cookies.load(ignore_discard=True, ignore_expires=True)
+                    print(f"[KICK API] ✓ {len(cookies)} cookies cargadas")
+                except Exception as e:
+                    print(f"[KICK API] Error cargando cookies: {e}")
+                    cookies = None
+            
+            response = requests.get(api_url, headers=headers, cookies=cookies, timeout=15)
         
         if response.status_code != 200:
             print(f"[KICK API] Error {response.status_code}: {response.text[:200]}")
