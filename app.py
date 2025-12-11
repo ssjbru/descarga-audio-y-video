@@ -395,6 +395,7 @@ def get_formats():
         is_youtube = 'youtube.com' in url or 'youtu.be' in url
         is_soundcloud = 'soundcloud.com' in url
         is_vimeo = 'vimeo.com' in url
+        is_kick = 'kick.com' in url
         
         # USAR COBALT API PARA YOUTUBE - evita bloqueos de IP completamente
         if is_youtube:
@@ -628,6 +629,24 @@ def get_formats():
             'extract_flat': False,
             'force_generic_extractor': False,
         }
+        
+        # Headers específicos para Kick.com (protección anti-bot agresiva)
+        if is_kick:
+            print("[KICK] Detectado - Kick.com tiene protecciones anti-bot extremas")
+            ydl_opts['http_headers'] = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Referer': 'https://kick.com/',
+                'Origin': 'https://kick.com',
+            }
+            # Kick requiere cookies de sesión válida
+            try:
+                if not os.path.exists('/opt/render'):
+                    ydl_opts['cookiesfrombrowser'] = ('chrome',)
+                    print("[KICK] Intentando usar cookies del navegador...")
+            except:
+                pass
         
         # Optimizaciones específicas por plataforma
         if False:  # Ya no usamos yt-dlp para YouTube
@@ -878,6 +897,17 @@ def get_formats():
                          '• Usa SoundCloud (soundcloud.com)\n'
                          '• Usa Bandcamp para música independiente'
             }), 400
+        
+        # Mensaje específico para Kick.com con error 403
+        if 'kick.com' in url.lower() and '403' in error_msg:
+            return jsonify({
+                'error': '❌ Kick.com bloqueó el acceso (Error 403)\n\n'
+                         '⚠️ Kick.com tiene protecciones anti-bot muy agresivas que bloquean herramientas de descarga.\n\n'
+                         '💡 Alternativas:\n'
+                         '• Usa OBS Studio para grabar el stream en directo\n'
+                         '• Usa Streamlink (herramienta de línea de comandos)\n'
+                         '• Kick.com generalmente no permite descargas automatizadas'
+            }), 403
         
         return jsonify({'error': f'Error al obtener información del video: {error_msg}'}), 500
     except Exception as e:
