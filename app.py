@@ -150,119 +150,62 @@ COBALT_INSTANCES = [
     "https://api.cobalt.tools",  # Requiere JWT pero lo dejamos como backup
 ]
 
-def get_kick_video_info(video_id):
+def get_streamlink_info(url):
     """
-    Obtiene información del video de Kick usando su API pública
-    Retorna dict con título, duración, URL del m3u8, etc.
+    Obtiene información del video usando Streamlink (funciona con Kick, Twitch, etc.)
+    Retorna dict con título, calidades disponibles, etc.
     """
     try:
-        print(f"[KICK API] Obteniendo info del video: {video_id}")
+        print(f"[STREAMLINK] Obteniendo info de: {url}")
         
-        # API pública de Kick
-        api_url = f"https://kick.com/api/v2/video/{video_id}"
+        import subprocess
+        import json
         
-        # Verificar si tenemos ScraperAPI configurada
-        scraper_api_key = os.environ.get('SCRAPERAPI_KEY')
+        # Comando streamlink para obtener información en JSON
+        cmd = ['streamlink', '--json', url]
         
-        if scraper_api_key:
-            print(f"[KICK API] Usando ScraperAPI para bypassear protecciones")
-            # ScraperAPI como proxy con browser rendering (necesario para Kick)
-            import urllib.parse
-            encoded_url = urllib.parse.quote(api_url, safe='')
-            # render=true para usar navegador headless real y bypassear protecciones JavaScript
-            scraperapi_url = f"https://api.scraperapi.com/?api_key={scraper_api_key}&url={encoded_url}&render=true"
-            
-            print(f"[KICK API] URL ScraperAPI con rendering: {scraperapi_url[:120]}...")
-            
-            headers = {
-                'Accept': 'application/json',
-            }
-            
-            response = requests.get(scraperapi_url, headers=headers, timeout=60)  # Más timeout para rendering
-            
-            print(f"[KICK API] Status code: {response.status_code}")
-            print(f"[KICK API] Content-Type: {response.headers.get('Content-Type')}")
-            print(f"[KICK API] Response preview: {response.text[:300]}")
-            
-        else:
-            print(f"[KICK API] Sin ScraperAPI - usando método directo (puede fallar)")
-            
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'application/json',
-                'Accept-Language': 'en-US,en;q=0.9',
-                'Referer': 'https://kick.com/',
-                'Origin': 'https://kick.com',
-                'Sec-Fetch-Dest': 'empty',
-                'Sec-Fetch-Mode': 'cors',
-                'Sec-Fetch-Site': 'same-origin',
-            }
-            
-            # Cargar cookies desde archivo si están disponibles
-            cookies = None
-            if KICK_COOKIES_FILE and os.path.exists(KICK_COOKIES_FILE):
-                print(f"[KICK API] Cargando cookies desde: {KICK_COOKIES_FILE}")
-                try:
-                    from http.cookiejar import MozillaCookieJar
-                    cookies = MozillaCookieJar(KICK_COOKIES_FILE)
-                    cookies.load(ignore_discard=True, ignore_expires=True)
-                    print(f"[KICK API] ✓ {len(cookies)} cookies cargadas")
-                except Exception as e:
-                    print(f"[KICK API] Error cargando cookies: {e}")
-                    cookies = None
-            
-            response = requests.get(api_url, headers=headers, cookies=cookies, timeout=15)
+        print(f"[STREAMLINK] Ejecutando: {' '.join(cmd)}")
         
-        if response.status_code != 200:
-            print(f"[KICK API] Error {response.status_code}: {response.text[:200]}")
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        if result.returncode != 0:
+            print(f"[STREAMLINK] Error: {result.stderr}")
             return None
         
-        data = response.json()
+        # Parsear JSON de streamlink
+        data = json.loads(result.stdout)
         
         # Extraer información relevante
+        streams = data.get('streams', {})
+        metadata = data.get('metadata', {})
+        
         video_info = {
-            'id': data.get('id'),
-            'title': data.get('session_title', 'Video de Kick'),
-            'thumbnail': data.get('thumbnail', {}).get('url', ''),
-            'duration': data.get('duration', 0),  # En segundos
-            'source': data.get('source'),  # URL del m3u8
-            'channel': data.get('livestream', {}).get('channel', {}).get('username', 'Unknown'),
-            'created_at': data.get('created_at', ''),
+            'title': metadata.get('title', 'Video'),
+            'author': metadata.get('author', 'Unknown'),
+            'category': metadata.get('category', ''),
+            'streams': list(streams.keys()),  # Lista de calidades disponibles
+            'url': url
         }
         
-        print(f"[KICK API] ✓ Título: {video_info['title']}")
-        print(f"[KICK API] ✓ Canal: {video_info['channel']}")
-        print(f"[KICK API] ✓ Duración: {video_info['duration']}s")
-        print(f"[KICK API] ✓ Source URL: {video_info['source'][:80]}...")
+        print(f"[STREAMLINK] ✓ Título: {video_info['title']}")
+        print(f"[STREAMLINK] ✓ Autor: {video_info['author']}")
+        print(f"[STREAMLINK] ✓ Calidades disponibles: {', '.join(video_info['streams'])}")
         
         return video_info
         
+    except subprocess.TimeoutExpired:
+        print(f"[STREAMLINK] Timeout al obtener información")
+        return None
     except Exception as e:
-        print(f"[KICK API] Error: {str(e)}")
+        print(f"[STREAMLINK] Error: {str(e)}")
         import traceback
         traceback.print_exc()
         return None
-
-def extract_kick_video_id(url):
-    """
-    Extrae el video ID de una URL de Kick
-    Ejemplos:
-    - https://kick.com/username/videos/d1c98f2c-38c3-4344-8ee8-bfd9d5469c37
-    - https://kick.com/video/d1c98f2c-38c3-4344-8ee8-bfd9d5469c37
-    """
-    import re
-    
-    # Patrón para UUID de Kick (formato: 8-4-4-4-12 caracteres hex)
-    pattern = r'([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})'
-    match = re.search(pattern, url, re.IGNORECASE)
-    
-    if match:
-        video_id = match.group(1)
-        print(f"[KICK] Video ID extraído: {video_id}")
-        return video_id
-    
-    print(f"[KICK] No se pudo extraer video ID de: {url}")
-    return None
 
 def download_with_cobalt(url, quality='max'):
     """
@@ -558,104 +501,90 @@ def get_formats():
         is_vimeo = 'vimeo.com' in url
         is_kick = 'kick.com' in url
         
-        # USAR API DIRECTA DE KICK - evita bloqueos completamente
-        if is_kick:
-            print(f"[INFO] Kick detectado - usando API pública de Kick")
+        # USAR STREAMLINK PARA KICK/TWITCH - evita bloqueos completamente
+        if is_kick or 'twitch.tv' in url:
+            platform = 'KICK' if is_kick else 'TWITCH'
+            print(f"[INFO] {platform} detectado - usando Streamlink")
             try:
-                video_id = extract_kick_video_id(url)
-                
-                if not video_id:
-                    return jsonify({'error': 'No se pudo extraer el ID del video de Kick. Verifica que la URL sea correcta.'}), 400
-                
-                video_info = get_kick_video_info(video_id)
+                video_info = get_streamlink_info(url)
                 
                 if not video_info:
-                    return jsonify({'error': 'No se pudo obtener información del video desde la API de Kick.'}), 500
+                    return jsonify({'error': f'No se pudo obtener información del video de {platform}.'}), 500
                 
-                # Crear formatos simplificados (Kick usa HLS/m3u8)
-                # La URL source es un m3u8 que contiene múltiples calidades
-                source_url = video_info.get('source')
+                # Obtener calidades disponibles de Streamlink
+                available_streams = video_info.get('streams', [])
                 
-                if not source_url:
-                    return jsonify({'error': 'El video no tiene URL de descarga disponible.'}), 500
+                if not available_streams:
+                    return jsonify({'error': 'No hay streams disponibles para este video.'}), 500
                 
-                duration = video_info.get('duration', 0)
+                # Mapear calidades comunes
+                quality_map = {
+                    'best': 1080,
+                    '1080p60': 1080,
+                    '1080p': 1080,
+                    '720p60': 720,
+                    '720p': 720,
+                    '480p': 480,
+                    '360p': 360,
+                    'worst': 240
+                }
                 
-                # Estimación de tamaños basado en duración (bitrates típicos de Kick)
-                # Kick típicamente usa: 1080p@6Mbps, 720p@3Mbps, 480p@1.5Mbps, 360p@0.8Mbps
-                formats_with_sizes = [
-                    {
-                        'quality': 1080,
-                        'quality_label': 'Full HD (1080p)',
-                        'format': 'mp4',
-                        'vcodec': 'h264',
-                        'acodec': 'aac',
-                        'filesize': int((6 * 1000000 * duration) / 8) if duration else 0,
-                        'filesize_mb': round((6 * duration) / 8, 2) if duration else 'Variable',
-                        'source_url': source_url
-                    },
-                    {
-                        'quality': 720,
-                        'quality_label': 'HD (720p)',
-                        'format': 'mp4',
-                        'vcodec': 'h264',
-                        'acodec': 'aac',
-                        'filesize': int((3 * 1000000 * duration) / 8) if duration else 0,
-                        'filesize_mb': round((3 * duration) / 8, 2) if duration else 'Variable',
-                        'source_url': source_url
-                    },
-                    {
-                        'quality': 480,
-                        'quality_label': 'SD (480p)',
-                        'format': 'mp4',
-                        'vcodec': 'h264',
-                        'acodec': 'aac',
-                        'filesize': int((1.5 * 1000000 * duration) / 8) if duration else 0,
-                        'filesize_mb': round((1.5 * duration) / 8, 2) if duration else 'Variable',
-                        'source_url': source_url
-                    },
-                    {
-                        'quality': 360,
-                        'quality_label': 'Baja (360p)',
-                        'format': 'mp4',
-                        'vcodec': 'h264',
-                        'acodec': 'aac',
-                        'filesize': int((0.8 * 1000000 * duration) / 8) if duration else 0,
-                        'filesize_mb': round((0.8 * duration) / 8, 2) if duration else 'Variable',
-                        'source_url': source_url
+                # Crear formatos basados en streams disponibles
+                formats_with_sizes = []
+                for stream_name in available_streams:
+                    quality = quality_map.get(stream_name, 720)
+                    
+                    # Estimación de bitrate por calidad
+                    bitrate_map = {
+                        1080: 6,
+                        720: 3,
+                        480: 1.5,
+                        360: 0.8,
+                        240: 0.5
                     }
-                ]
+                    bitrate = bitrate_map.get(quality, 3)
+                    
+                    formats_with_sizes.append({
+                        'quality': quality,
+                        'quality_label': stream_name,
+                        'format': 'mp4',
+                        'vcodec': 'h264',
+                        'acodec': 'aac',
+                        'filesize': 0,  # Streamlink no proporciona tamaño hasta descarga
+                        'filesize_mb': 'Variable',
+                        'stream_name': stream_name
+                    })
                 
                 audio_formats = [
                     {
-                        'format_id': 'kick-audio',
+                        'format_id': f'{platform.lower()}-audio',
                         'ext': 'm4a',
                         'abr': 128,
                         'abr_text': 'Mejor Calidad',
                         'acodec': 'aac',
-                        'filesize': int((128 * 1000 * duration) / 8) if duration else 0,
-                        'filesize_mb': round((128 * duration) / 8000, 2) if duration else 'Variable',
+                        'filesize': 0,
+                        'filesize_mb': 'Variable',
                     }
                 ]
                 
-                print(f"[KICK API] ✓ {len(formats_with_sizes)} calidades disponibles")
-                print(f"[KICK API] ✓ Todo listo para: {video_info['title']}")
+                print(f"[{platform}] ✓ {len(formats_with_sizes)} calidades disponibles")
+                print(f"[{platform}] ✓ Todo listo para: {video_info['title']}")
                 
                 return jsonify({
                     'title': video_info['title'],
-                    'duration': duration,
-                    'thumbnail': video_info['thumbnail'],
+                    'duration': 0,  # Streamlink no siempre proporciona duración
+                    'thumbnail': '',
                     'formats': formats_with_sizes,
                     'audio_formats': audio_formats,
-                    'platform': 'kick',
-                    'channel': video_info['channel']
+                    'platform': platform.lower(),
+                    'channel': video_info['author']
                 })
                 
             except Exception as e:
-                print(f"[ERROR KICK API] {str(e)}")
+                print(f"[ERROR {platform}] {str(e)}")
                 import traceback
                 traceback.print_exc()
-                return jsonify({'error': f'Error al procesar video de Kick: {str(e)}'}), 500
+                return jsonify({'error': f'Error al procesar video de {platform}: {str(e)}'}), 500
         
         # USAR COBALT API PARA YOUTUBE - evita bloqueos de IP completamente
         if is_youtube:
@@ -1181,15 +1110,15 @@ def get_formats():
                          '• Usa Bandcamp para música independiente'
             }), 400
         
-        # Mensaje específico para Kick.com con error 403
-        if 'kick.com' in url.lower() and '403' in error_msg:
+        # Mensaje específico para Kick/Twitch si Streamlink falla
+        if ('kick.com' in url.lower() or 'twitch.tv' in url.lower()) and 'streamlink' in error_msg.lower():
             return jsonify({
-                'error': '❌ Kick.com bloqueó el acceso (Error 403)\n\n'
-                         '⚠️ Kick.com tiene protecciones anti-bot muy agresivas que bloquean herramientas de descarga.\n\n'
-                         '💡 Alternativas:\n'
-                         '• Usa OBS Studio para grabar el stream en directo\n'
-                         '• Usa Streamlink (herramienta de línea de comandos)\n'
-                         '• Kick.com generalmente no permite descargas automatizadas'
+                'error': '❌ Error al procesar el video\n\n'
+                         '⚠️ La plataforma puede tener restricciones o el video no está disponible.\n\n'
+                         '💡 Verifica:\n'
+                         '• Que el video sea público\n'
+                         '• Que la URL esté completa y correcta\n'
+                         '• Que el video no esté eliminado'
             }), 403
         
         return jsonify({'error': f'Error al obtener información del video: {error_msg}'}), 500
@@ -1220,63 +1149,57 @@ def download():
         is_youtube = 'youtube.com' in url or 'youtu.be' in url
         is_kick = 'kick.com' in url
         
-        # MANEJO DE KICK CON API DIRECTA
-        if is_kick:
-            print(f"[KICK DOWNLOAD] Iniciando descarga de Kick")
+        # MANEJO DE KICK/TWITCH CON STREAMLINK
+        if is_kick or 'twitch.tv' in url:
+            platform = 'KICK' if is_kick else 'TWITCH'
+            print(f"[{platform}] Iniciando descarga con Streamlink")
             
             try:
-                video_id = extract_kick_video_id(url)
-                if not video_id:
-                    return jsonify({'error': 'No se pudo extraer el ID del video de Kick'}), 400
-                
-                video_info = get_kick_video_info(video_id)
-                if not video_info or not video_info.get('source'):
-                    return jsonify({'error': 'No se pudo obtener la URL del video'}), 500
-                
-                m3u8_url = video_info['source']
-                title = video_info['title']
-                
-                # Descargar usando ffmpeg (mejor para m3u8)
                 output_file = os.path.join(DOWNLOAD_FOLDER, f'{download_id}.mp4')
                 
-                print(f"[KICK DOWNLOAD] Descargando desde m3u8: {m3u8_url[:80]}...")
-                print(f"[KICK DOWNLOAD] Guardando en: {output_file}")
+                # Determinar calidad (best por defecto o usar el stream_name si está disponible)
+                stream_quality = format_id if format_id else (quality if quality else 'best')
                 
-                # Comando ffmpeg para descargar m3u8
-                ffmpeg_cmd = [
-                    'ffmpeg',
-                    '-i', m3u8_url,
-                    '-c', 'copy',  # Copiar sin recodificar
-                    '-bsf:a', 'aac_adtstoasc',  # Convertir AAC si es necesario
-                    '-y',  # Sobrescribir si existe
-                    output_file
+                print(f"[{platform}] URL: {url}")
+                print(f"[{platform}] Calidad: {stream_quality}")
+                print(f"[{platform}] Guardando en: {output_file}")
+                
+                # Comando streamlink para descargar
+                import subprocess
+                streamlink_cmd = [
+                    'streamlink',
+                    url,
+                    stream_quality,
+                    '-o', output_file,
+                    '--force'  # Sobrescribir si existe
                 ]
                 
-                # Ejecutar ffmpeg
-                import subprocess
+                print(f"[{platform}] Ejecutando: {' '.join(streamlink_cmd)}")
+                
+                # Ejecutar streamlink
                 process = subprocess.Popen(
-                    ffmpeg_cmd,
+                    streamlink_cmd,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     universal_newlines=True
                 )
                 
-                stdout, stderr = process.communicate()
+                stdout, stderr = process.communicate(timeout=600)  # 10 minutos timeout
                 
                 if process.returncode != 0:
-                    print(f"[KICK DOWNLOAD] Error ffmpeg: {stderr[:500]}")
+                    print(f"[{platform}] Error streamlink: {stderr[:500]}")
                     return jsonify({'error': f'Error al descargar video: {stderr[:200]}'}), 500
                 
                 if not os.path.exists(output_file):
                     return jsonify({'error': 'El archivo no se descargó correctamente'}), 500
                 
-                print(f"[KICK DOWNLOAD] ✓ Descarga completada: {os.path.getsize(output_file)} bytes")
+                print(f"[{platform}] ✓ Descarga completada: {os.path.getsize(output_file)} bytes")
                 
                 # Registrar descarga
                 download_progress[download_id] = {
                     'status': 'completed',
                     'filename': f'{download_id}.mp4',
-                    'title': title
+                    'title': f'{platform} Video'
                 }
                 
                 return jsonify({
