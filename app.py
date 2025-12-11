@@ -150,6 +150,76 @@ COBALT_INSTANCES = [
     "https://api.cobalt.tools",  # Requiere JWT pero lo dejamos como backup
 ]
 
+def get_kick_video_info(video_id):
+    """
+    Obtiene información del video de Kick usando su API pública
+    Retorna dict con título, duración, URL del m3u8, etc.
+    """
+    try:
+        print(f"[KICK API] Obteniendo info del video: {video_id}")
+        
+        # API pública de Kick
+        api_url = f"https://kick.com/api/v2/video/{video_id}"
+        
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'application/json',
+            'Referer': 'https://kick.com/',
+        }
+        
+        response = requests.get(api_url, headers=headers, timeout=15)
+        
+        if response.status_code != 200:
+            print(f"[KICK API] Error {response.status_code}: {response.text[:200]}")
+            return None
+        
+        data = response.json()
+        
+        # Extraer información relevante
+        video_info = {
+            'id': data.get('id'),
+            'title': data.get('session_title', 'Video de Kick'),
+            'thumbnail': data.get('thumbnail', {}).get('url', ''),
+            'duration': data.get('duration', 0),  # En segundos
+            'source': data.get('source'),  # URL del m3u8
+            'channel': data.get('livestream', {}).get('channel', {}).get('username', 'Unknown'),
+            'created_at': data.get('created_at', ''),
+        }
+        
+        print(f"[KICK API] ✓ Título: {video_info['title']}")
+        print(f"[KICK API] ✓ Canal: {video_info['channel']}")
+        print(f"[KICK API] ✓ Duración: {video_info['duration']}s")
+        print(f"[KICK API] ✓ Source URL: {video_info['source'][:80]}...")
+        
+        return video_info
+        
+    except Exception as e:
+        print(f"[KICK API] Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+def extract_kick_video_id(url):
+    """
+    Extrae el video ID de una URL de Kick
+    Ejemplos:
+    - https://kick.com/username/videos/d1c98f2c-38c3-4344-8ee8-bfd9d5469c37
+    - https://kick.com/video/d1c98f2c-38c3-4344-8ee8-bfd9d5469c37
+    """
+    import re
+    
+    # Patrón para UUID de Kick (formato: 8-4-4-4-12 caracteres hex)
+    pattern = r'([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})'
+    match = re.search(pattern, url, re.IGNORECASE)
+    
+    if match:
+        video_id = match.group(1)
+        print(f"[KICK] Video ID extraído: {video_id}")
+        return video_id
+    
+    print(f"[KICK] No se pudo extraer video ID de: {url}")
+    return None
+
 def download_with_cobalt(url, quality='max'):
     """
     Descarga videos usando Cobalt API v9 (para YouTube principalmente)
@@ -443,6 +513,105 @@ def get_formats():
         is_soundcloud = 'soundcloud.com' in url
         is_vimeo = 'vimeo.com' in url
         is_kick = 'kick.com' in url
+        
+        # USAR API DIRECTA DE KICK - evita bloqueos completamente
+        if is_kick:
+            print(f"[INFO] Kick detectado - usando API pública de Kick")
+            try:
+                video_id = extract_kick_video_id(url)
+                
+                if not video_id:
+                    return jsonify({'error': 'No se pudo extraer el ID del video de Kick. Verifica que la URL sea correcta.'}), 400
+                
+                video_info = get_kick_video_info(video_id)
+                
+                if not video_info:
+                    return jsonify({'error': 'No se pudo obtener información del video desde la API de Kick.'}), 500
+                
+                # Crear formatos simplificados (Kick usa HLS/m3u8)
+                # La URL source es un m3u8 que contiene múltiples calidades
+                source_url = video_info.get('source')
+                
+                if not source_url:
+                    return jsonify({'error': 'El video no tiene URL de descarga disponible.'}), 500
+                
+                duration = video_info.get('duration', 0)
+                
+                # Estimación de tamaños basado en duración (bitrates típicos de Kick)
+                # Kick típicamente usa: 1080p@6Mbps, 720p@3Mbps, 480p@1.5Mbps, 360p@0.8Mbps
+                formats_with_sizes = [
+                    {
+                        'quality': 1080,
+                        'quality_label': 'Full HD (1080p)',
+                        'format': 'mp4',
+                        'vcodec': 'h264',
+                        'acodec': 'aac',
+                        'filesize': int((6 * 1000000 * duration) / 8) if duration else 0,
+                        'filesize_mb': round((6 * duration) / 8, 2) if duration else 'Variable',
+                        'source_url': source_url
+                    },
+                    {
+                        'quality': 720,
+                        'quality_label': 'HD (720p)',
+                        'format': 'mp4',
+                        'vcodec': 'h264',
+                        'acodec': 'aac',
+                        'filesize': int((3 * 1000000 * duration) / 8) if duration else 0,
+                        'filesize_mb': round((3 * duration) / 8, 2) if duration else 'Variable',
+                        'source_url': source_url
+                    },
+                    {
+                        'quality': 480,
+                        'quality_label': 'SD (480p)',
+                        'format': 'mp4',
+                        'vcodec': 'h264',
+                        'acodec': 'aac',
+                        'filesize': int((1.5 * 1000000 * duration) / 8) if duration else 0,
+                        'filesize_mb': round((1.5 * duration) / 8, 2) if duration else 'Variable',
+                        'source_url': source_url
+                    },
+                    {
+                        'quality': 360,
+                        'quality_label': 'Baja (360p)',
+                        'format': 'mp4',
+                        'vcodec': 'h264',
+                        'acodec': 'aac',
+                        'filesize': int((0.8 * 1000000 * duration) / 8) if duration else 0,
+                        'filesize_mb': round((0.8 * duration) / 8, 2) if duration else 'Variable',
+                        'source_url': source_url
+                    }
+                ]
+                
+                audio_formats = [
+                    {
+                        'format_id': 'kick-audio',
+                        'ext': 'm4a',
+                        'abr': 128,
+                        'abr_text': 'Mejor Calidad',
+                        'acodec': 'aac',
+                        'filesize': int((128 * 1000 * duration) / 8) if duration else 0,
+                        'filesize_mb': round((128 * duration) / 8000, 2) if duration else 'Variable',
+                    }
+                ]
+                
+                print(f"[KICK API] ✓ {len(formats_with_sizes)} calidades disponibles")
+                print(f"[KICK API] ✓ Todo listo para: {video_info['title']}")
+                
+                return jsonify({
+                    'title': video_info['title'],
+                    'duration': duration,
+                    'thumbnail': video_info['thumbnail'],
+                    'formats': formats_with_sizes,
+                    'audio_formats': audio_formats,
+                    'platform': 'kick',
+                    'channel': video_info['channel']
+                })
+                
+            except Exception as e:
+                print(f"[ERROR KICK API] {str(e)}")
+                import traceback
+                traceback.print_exc()
+                return jsonify({'error': f'Error al procesar video de Kick: {str(e)}'}), 500
         
         # USAR COBALT API PARA YOUTUBE - evita bloqueos de IP completamente
         if is_youtube:
@@ -995,6 +1164,7 @@ def download():
         format_id = data.get('format_id')
         download_type = data.get('type', 'video')  # 'video' o 'audio'
         output_format = data.get('output_format', 'mp4')  # Formato de salida deseado
+        quality = data.get('quality')  # Para Kick: 1080, 720, 480, 360
         
         if not url:
             return jsonify({'error': 'URL no proporcionada'}), 400
@@ -1002,8 +1172,80 @@ def download():
         # Generar ID único para esta descarga
         download_id = str(uuid.uuid4())
         
-        # Detectar si es YouTube y usar Cobalt API
+        # Detectar plataforma
         is_youtube = 'youtube.com' in url or 'youtu.be' in url
+        is_kick = 'kick.com' in url
+        
+        # MANEJO DE KICK CON API DIRECTA
+        if is_kick:
+            print(f"[KICK DOWNLOAD] Iniciando descarga de Kick")
+            
+            try:
+                video_id = extract_kick_video_id(url)
+                if not video_id:
+                    return jsonify({'error': 'No se pudo extraer el ID del video de Kick'}), 400
+                
+                video_info = get_kick_video_info(video_id)
+                if not video_info or not video_info.get('source'):
+                    return jsonify({'error': 'No se pudo obtener la URL del video'}), 500
+                
+                m3u8_url = video_info['source']
+                title = video_info['title']
+                
+                # Descargar usando ffmpeg (mejor para m3u8)
+                output_file = os.path.join(DOWNLOAD_FOLDER, f'{download_id}.mp4')
+                
+                print(f"[KICK DOWNLOAD] Descargando desde m3u8: {m3u8_url[:80]}...")
+                print(f"[KICK DOWNLOAD] Guardando en: {output_file}")
+                
+                # Comando ffmpeg para descargar m3u8
+                ffmpeg_cmd = [
+                    'ffmpeg',
+                    '-i', m3u8_url,
+                    '-c', 'copy',  # Copiar sin recodificar
+                    '-bsf:a', 'aac_adtstoasc',  # Convertir AAC si es necesario
+                    '-y',  # Sobrescribir si existe
+                    output_file
+                ]
+                
+                # Ejecutar ffmpeg
+                import subprocess
+                process = subprocess.Popen(
+                    ffmpeg_cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=True
+                )
+                
+                stdout, stderr = process.communicate()
+                
+                if process.returncode != 0:
+                    print(f"[KICK DOWNLOAD] Error ffmpeg: {stderr[:500]}")
+                    return jsonify({'error': f'Error al descargar video: {stderr[:200]}'}), 500
+                
+                if not os.path.exists(output_file):
+                    return jsonify({'error': 'El archivo no se descargó correctamente'}), 500
+                
+                print(f"[KICK DOWNLOAD] ✓ Descarga completada: {os.path.getsize(output_file)} bytes")
+                
+                # Registrar descarga
+                download_progress[download_id] = {
+                    'status': 'completed',
+                    'filename': f'{download_id}.mp4',
+                    'title': title
+                }
+                
+                return jsonify({
+                    'success': True,
+                    'download_id': download_id,
+                    'message': 'Descarga completada'
+                })
+                
+            except Exception as e:
+                print(f"[KICK DOWNLOAD ERROR] {str(e)}")
+                import traceback
+                traceback.print_exc()
+                return jsonify({'error': f'Error al descargar desde Kick: {str(e)}'}), 500
         
         if is_youtube:
             print(f"[INFO] YouTube detectado - usando Cobalt API para descarga")
