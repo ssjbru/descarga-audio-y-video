@@ -32,6 +32,11 @@ source venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
 
+# Instalar/actualizar Streamlink y plugin Kick
+pip install --upgrade pip
+pip install --upgrade streamlink
+pip install git+https://github.com/streamlink/streamlink-plugins.git
+
 echo ""
 echo "✓ Aplicación configurada"
 echo ""

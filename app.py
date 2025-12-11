@@ -2093,6 +2093,13 @@ def download_converted(download_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# Log de versión de Streamlink para diagnóstico en Render
+try:
+    version = subprocess.getoutput("streamlink --version")
+    print(f"[DEBUG] Streamlink version: {version}")
+except Exception as e:
+    print(f"[DEBUG] Error obteniendo versión de Streamlink: {e}")
+
 if __name__ == '__main__':
     # Verificar si hay cookies disponibles
     if COOKIES_FILE and os.path.exists(COOKIES_FILE) and os.path.getsize(COOKIES_FILE) > 0:
