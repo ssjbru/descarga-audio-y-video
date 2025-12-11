@@ -169,7 +169,8 @@ def get_kick_video_info(video_id):
             # ScraperAPI como proxy
             import urllib.parse
             encoded_url = urllib.parse.quote(api_url, safe='')
-            scraperapi_url = f"https://api.scraperapi.com/?api_key={scraper_api_key}&url={encoded_url}"
+            # render=false para obtener JSON directo sin renderizar JavaScript
+            scraperapi_url = f"https://api.scraperapi.com/?api_key={scraper_api_key}&url={encoded_url}&render=false"
             
             print(f"[KICK API] URL ScraperAPI: {scraperapi_url[:120]}...")
             
