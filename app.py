@@ -64,7 +64,10 @@ def cache_metadata(video_id, metadata):
 
 # Buscar cookies en múltiples ubicaciones y manejar read-only
 COOKIES_FILE = None
+KICK_COOKIES_FILE = None
+TWITCH_COOKIES_FILE = None
 
+# Cookies de YouTube
 possible_cookie_paths = [
     '/etc/secrets/youtube_cookies.txt',  # Render Secret Files
     '/etc/secrets/www.youtube.com_cookies',  # Render Secret Files (alternativo)
@@ -80,11 +83,51 @@ for path in possible_cookie_paths:
             temp_cookies = os.path.join(temp_dir, 'yt_cookies_writable.txt')
             shutil.copy2(path, temp_cookies)
             COOKIES_FILE = temp_cookies
-            print(f"✓ Cookies encontradas en: {path}")
+            print(f"✓ Cookies de YouTube encontradas en: {path}")
             print(f"  → Copiadas a ubicación escribible: {temp_cookies}")
             break
         except Exception as e:
-            print(f"⚠ Error copiando cookies desde {path}: {e}")
+            print(f"⚠ Error copiando cookies de YouTube desde {path}: {e}")
+            continue
+
+# Cookies de Kick.com
+kick_cookie_paths = [
+    '/etc/secrets/kick.com_cookies.txt',
+    os.path.join(os.getcwd(), 'kick.com_cookies.txt'),
+]
+
+for path in kick_cookie_paths:
+    if os.path.exists(path) and os.path.getsize(path) > 0:
+        try:
+            temp_dir = tempfile.gettempdir()
+            temp_cookies = os.path.join(temp_dir, 'kick_cookies_writable.txt')
+            shutil.copy2(path, temp_cookies)
+            KICK_COOKIES_FILE = temp_cookies
+            print(f"✓ Cookies de Kick encontradas en: {path}")
+            print(f"  → Copiadas a ubicación escribible: {temp_cookies}")
+            break
+        except Exception as e:
+            print(f"⚠ Error copiando cookies de Kick desde {path}: {e}")
+            continue
+
+# Cookies de Twitch
+twitch_cookie_paths = [
+    '/etc/secrets/www.twitch.tv_cookies.txt',
+    os.path.join(os.getcwd(), 'www.twitch.tv_cookies.txt'),
+]
+
+for path in twitch_cookie_paths:
+    if os.path.exists(path) and os.path.getsize(path) > 0:
+        try:
+            temp_dir = tempfile.gettempdir()
+            temp_cookies = os.path.join(temp_dir, 'twitch_cookies_writable.txt')
+            shutil.copy2(path, temp_cookies)
+            TWITCH_COOKIES_FILE = temp_cookies
+            print(f"✓ Cookies de Twitch encontradas en: {path}")
+            print(f"  → Copiadas a ubicación escribible: {temp_cookies}")
+            break
+        except Exception as e:
+            print(f"⚠ Error copiando cookies de Twitch desde {path}: {e}")
             continue
 
 if not COOKIES_FILE:
@@ -632,7 +675,7 @@ def get_formats():
         
         # Headers específicos para Kick.com (protección anti-bot agresiva)
         if is_kick:
-            print("[KICK] Detectado - Kick.com tiene protecciones anti-bot extremas")
+            print("[KICK] Detectado - aplicando configuración anti-bloqueo")
             ydl_opts['http_headers'] = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
@@ -640,13 +683,36 @@ def get_formats():
                 'Referer': 'https://kick.com/',
                 'Origin': 'https://kick.com',
             }
-            # Kick requiere cookies de sesión válida
-            try:
+            # Usar cookies de Kick si están disponibles
+            if KICK_COOKIES_FILE and os.path.exists(KICK_COOKIES_FILE):
+                ydl_opts['cookiefile'] = KICK_COOKIES_FILE
+                print(f"[KICK] ✓ Usando cookies desde: {KICK_COOKIES_FILE}")
+            else:
+                print("[KICK] ⚠ Sin cookies - puede fallar (se necesita sesión autenticada)")
+                # Intentar cookies del navegador en local
                 if not os.path.exists('/opt/render'):
-                    ydl_opts['cookiesfrombrowser'] = ('chrome',)
-                    print("[KICK] Intentando usar cookies del navegador...")
-            except:
-                pass
+                    try:
+                        ydl_opts['cookiesfrombrowser'] = ('chrome',)
+                        print("[KICK] Intentando cookies del navegador Chrome...")
+                    except:
+                        pass
+        
+        # Detectar Twitch
+        is_twitch = 'twitch.tv' in url
+        if is_twitch:
+            print("[TWITCH] Detectado - aplicando configuración anti-bloqueo")
+            ydl_opts['http_headers'] = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': '*/*',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Referer': 'https://www.twitch.tv/',
+            }
+            # Usar cookies de Twitch si están disponibles
+            if TWITCH_COOKIES_FILE and os.path.exists(TWITCH_COOKIES_FILE):
+                ydl_opts['cookiefile'] = TWITCH_COOKIES_FILE
+                print(f"[TWITCH] ✓ Usando cookies desde: {TWITCH_COOKIES_FILE}")
+            else:
+                print("[TWITCH] ⚠ Sin cookies - funcionalidad limitada")
         
         # Optimizaciones específicas por plataforma
         if False:  # Ya no usamos yt-dlp para YouTube
