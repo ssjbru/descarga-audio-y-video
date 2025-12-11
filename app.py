@@ -93,7 +93,9 @@ for path in possible_cookie_paths:
 # Cookies de Kick.com
 kick_cookie_paths = [
     '/etc/secrets/kick.com_cookies.txt',
+    '/etc/secrets/kick.com_cookies',  # Sin extensión
     os.path.join(os.getcwd(), 'kick.com_cookies.txt'),
+    os.path.join(os.getcwd(), 'kick.com_cookies'),
 ]
 
 for path in kick_cookie_paths:
@@ -113,7 +115,9 @@ for path in kick_cookie_paths:
 # Cookies de Twitch
 twitch_cookie_paths = [
     '/etc/secrets/www.twitch.tv_cookies.txt',
+    '/etc/secrets/www.twitch.tv_cookies',  # Sin extensión
     os.path.join(os.getcwd(), 'www.twitch.tv_cookies.txt'),
+    os.path.join(os.getcwd(), 'www.twitch.tv_cookies'),
 ]
 
 for path in twitch_cookie_paths:
