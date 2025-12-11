@@ -164,10 +164,28 @@ def get_kick_video_info(video_id):
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept': 'application/json',
+            'Accept-Language': 'en-US,en;q=0.9',
             'Referer': 'https://kick.com/',
+            'Origin': 'https://kick.com',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'same-origin',
         }
         
-        response = requests.get(api_url, headers=headers, timeout=15)
+        # Cargar cookies desde archivo si están disponibles
+        cookies = None
+        if KICK_COOKIES_FILE and os.path.exists(KICK_COOKIES_FILE):
+            print(f"[KICK API] Cargando cookies desde: {KICK_COOKIES_FILE}")
+            try:
+                from http.cookiejar import MozillaCookieJar
+                cookies = MozillaCookieJar(KICK_COOKIES_FILE)
+                cookies.load(ignore_discard=True, ignore_expires=True)
+                print(f"[KICK API] ✓ {len(cookies)} cookies cargadas")
+            except Exception as e:
+                print(f"[KICK API] Error cargando cookies: {e}")
+                cookies = None
+        
+        response = requests.get(api_url, headers=headers, cookies=cookies, timeout=15)
         
         if response.status_code != 200:
             print(f"[KICK API] Error {response.status_code}: {response.text[:200]}")
