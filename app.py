@@ -152,17 +152,16 @@ COBALT_INSTANCES = [
 
 def get_streamlink_info(url):
     """
-    Obtiene información del video usando Streamlink (funciona con Kick, Twitch, etc.)
-    Retorna dict con título, calidades disponibles, etc.
+    Verifica que Streamlink puede acceder al video
+    Retorna dict con información básica y calidades estándar
     """
     try:
-        print(f"[STREAMLINK] Obteniendo info de: {url}")
+        print(f"[STREAMLINK] Verificando acceso a: {url}")
         
         import subprocess
-        import json
         
-        # Comando streamlink para obtener información en JSON
-        cmd = ['streamlink', '--json', url]
+        # Comando streamlink para listar streams disponibles (sin descargar)
+        cmd = ['streamlink', url]
         
         print(f"[STREAMLINK] Ejecutando: {' '.join(cmd)}")
         
@@ -174,26 +173,50 @@ def get_streamlink_info(url):
         )
         
         if result.returncode != 0:
-            print(f"[STREAMLINK] Error: {result.stderr}")
+            print(f"[STREAMLINK] Error stdout: {result.stdout[:500]}")
+            print(f"[STREAMLINK] Error stderr: {result.stderr[:500]}")
             return None
         
-        # Parsear JSON de streamlink
-        data = json.loads(result.stdout)
+        # Parsear output para extraer streams disponibles
+        output = result.stdout
+        print(f"[STREAMLINK] Output: {output[:500]}")
         
-        # Extraer información relevante
-        streams = data.get('streams', {})
-        metadata = data.get('metadata', {})
+        # Buscar líneas con calidades (formato: "Available streams: ...")
+        streams = []
+        if 'Available streams:' in output:
+            # Extraer calidades de la línea
+            for line in output.split('\n'):
+                if 'Available streams:' in line:
+                    # Típicamente: "Available streams: 160p, 360p, 480p, 720p, 1080p (best)"
+                    parts = line.split('Available streams:')[1].strip()
+                    streams = [s.strip().replace('(best)', '').replace('(worst)', '') for s in parts.split(',')]
+                    break
+        
+        # Si no se detectaron streams, usar calidades estándar
+        if not streams:
+            print(f"[STREAMLINK] No se detectaron streams específicos, usando calidades estándar")
+            streams = ['best', '1080p', '720p', '480p', '360p', 'worst']
+        
+        # Extraer título del output (algunas plataformas lo muestran)
+        title = 'Video'
+        author = 'Unknown'
+        if '[' in output and ']' in output:
+            # Formato típico: [plugin][info] Title: ...
+            for line in output.split('\n'):
+                if 'title' in line.lower():
+                    parts = line.split(':', 1)
+                    if len(parts) > 1:
+                        title = parts[1].strip()
+                        break
         
         video_info = {
-            'title': metadata.get('title', 'Video'),
-            'author': metadata.get('author', 'Unknown'),
-            'category': metadata.get('category', ''),
-            'streams': list(streams.keys()),  # Lista de calidades disponibles
+            'title': title,
+            'author': author,
+            'streams': streams,
             'url': url
         }
         
         print(f"[STREAMLINK] ✓ Título: {video_info['title']}")
-        print(f"[STREAMLINK] ✓ Autor: {video_info['author']}")
         print(f"[STREAMLINK] ✓ Calidades disponibles: {', '.join(video_info['streams'])}")
         
         return video_info
